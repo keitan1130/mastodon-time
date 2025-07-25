@@ -21,7 +21,7 @@ Mastodonサーバーのタイムラインを閲覧・検索できるChrome拡張
 
 ## インストール方法
 
-1. このリポジトリをローカルマシンにダウンロードまたはクローン→wslで
+1. このリポジトリをローカルマシンにダウンロードまたはクローン→wslで以下の文を実行
    - git clone https://github.com/keitan1130/mastodon-time
 
 3. Chromeで拡張機能`chrome://extensions/` にアクセス
