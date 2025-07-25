@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let all = [];
     let max = maxId;
     let requestCount = 0;
-    const maxRequests = 30;
+    const maxRequests = 30; // 最大30回のリクエストで制限（安全のため）
 
     const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
     const stored = await getStorageAsync(keys);
@@ -114,24 +114,26 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!res.ok) throw new Error('タイムライン取得エラー');
 
       const batch = await res.json();
-      if (!batch.length) break;
+      if (!batch.length) break;  // もう取得する投稿がない
 
-      all = all.concat(batch);
+      all = all.concat(batch);   // 結果をまとめる
       requestCount++;
 
+      // 進捗を表示（多くの投稿がある場合）
       if (all.length > 10) {
         document.getElementById('result').innerHTML =
           `<div class="loading">取得中... ${all.length}件取得済み</div>`;
       }
 
-      max = (BigInt(batch[batch.length - 1].id) - 1n).toString();
+      // 次のページ取得用に max_id を更新（最後の投稿ID - 1）
+      max = (BigInt(batch[batch.length-1].id) - 1n).toString();
 
+      // 取得件数が40件未満なら最後のページ
       if (batch.length < 40) break;
     }
 
     return all;
   }
-
 
   // --- ID <-> JST 変換 ---
   function generateSnowflakeIdFromJst(dtJst) {
