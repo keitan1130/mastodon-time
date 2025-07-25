@@ -78,46 +78,60 @@ document.addEventListener('DOMContentLoaded', function() {
     return res.json();
   }
 
+  // 認証情報取得
+  function getStorageAsync(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(keys, resolve);
+    });
+  }
+
   // 日時レンジ内のローカルタイムラインを取得
   // ローカルタイムライン = そのサーバー（mastodon.compositecomputer.club）のユーザーの投稿のみ
   async function fetchPublicTimelineInRange(sinceId, maxId) {
     let all = [];
     let max = maxId;
     let requestCount = 0;
-    const maxRequests = 30; // 最大30回のリクエストで制限（安全のため）
+    const maxRequests = 30;
 
-    // ページネーションでデータを取得
+    const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
+    const stored = await getStorageAsync(keys);
+
     while (requestCount < maxRequests) {
-      const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/public');
-      url.searchParams.set('limit', '40');         // 1回のリクエストで最大40件取得
-      url.searchParams.set('max_id', max);         // この ID より小さい（古い）投稿を取得
-      url.searchParams.set('since_id', sinceId);   // この ID より大きい（新しい）投稿を取得
-      url.searchParams.set('local', 'true');       // ローカルタイムライン（そのサーバーのみ）
+      const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/home');
+      url.searchParams.set('limit', '40');
+      url.searchParams.set('max_id', max);
+      url.searchParams.set('since_id', sinceId);
 
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: {
+          "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+          "X-Csrf-Token": stored["x_csrf_token"],
+          "Authorization": stored["authorization"]
+        },
+        credentials: "include" // 忘れずに（Cookieを送る場合）
+      });
+
       if (!res.ok) throw new Error('タイムライン取得エラー');
 
       const batch = await res.json();
-      if (!batch.length) break;  // もう取得する投稿がない
+      if (!batch.length) break;
 
-      all = all.concat(batch);   // 結果をまとめる
+      all = all.concat(batch);
       requestCount++;
 
-      // 進捗を表示（多くの投稿がある場合）
       if (all.length > 10) {
         document.getElementById('result').innerHTML =
           `<div class="loading">取得中... ${all.length}件取得済み</div>`;
       }
 
-      // 次のページ取得用に max_id を更新（最後の投稿ID - 1）
-      max = (BigInt(batch[batch.length-1].id) - 1n).toString();
+      max = (BigInt(batch[batch.length - 1].id) - 1n).toString();
 
-      // 取得件数が40件未満なら最後のページ
       if (batch.length < 40) break;
     }
 
     return all;
   }
+
 
   // --- ID <-> JST 変換 ---
   function generateSnowflakeIdFromJst(dtJst) {
