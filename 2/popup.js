@@ -12,9 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function updateInputUI() {
     const type = document.querySelector('input[name="inputType"]:checked').value;
+    const timeRangeSelector = document.getElementById('timeRangeSelector');
+
     if (type === 'id') {
       inputField.value = '114914440521507516';
       inputField.placeholder = '';
+      if (timeRangeSelector) timeRangeSelector.style.display = 'none';
     } else {
       // 1時間前の時刻を取得して実際の値として設定
       const now = new Date();
@@ -25,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const hour = String(now.getHours()).padStart(2, '0');
       inputField.value = `${year}-${month}-${day} ${hour}`;
       inputField.placeholder = '';
+      if (timeRangeSelector) timeRangeSelector.style.display = 'block';
     }
     resultDiv.innerHTML = '';
   }
@@ -43,17 +47,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const post = await fetchMastodonPost(raw);
         displayPosts([post]);
       } else {
-        // 時間範囲検索: 指定時刻の1時間
+        // 時間範囲検索: 指定時刻から選択した時間分
         // "YYYY-MM-DD HH" 形式のみ
         let mHour = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2})$/);
         if (!mHour) throw new Error('日時形式は YYYY-MM-DD HH です');
 
         const [Y,Mo,D] = mHour[1].split('-').map(Number);
         const hh = Number(mHour[2]);
+        const timeRangeSelect = document.getElementById('timeRange');
+        const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1; // デフォルト1時間
 
-        // 範囲設定: 指定時間から1時間後まで
+        // 範囲設定: 指定時間から選択した時間数後まで
         const startJst = new Date(Y, Mo-1, D, hh, 0, 0, 0);
-        const endJst = new Date(Y, Mo-1, D, hh+1, 0, 0, 0);
+        const endJst = new Date(Y, Mo-1, D, hh + rangeHours, 0, 0, 0);
 
         const startId = generateSnowflakeIdFromJst(startJst);
         const endId = generateSnowflakeIdFromJst(endJst);
@@ -78,12 +84,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let all = [];
     let max = maxId;
     let requestCount = 0;
-    const maxRequests = 20; // 最大20回のリクエストで制限（安全のため）
+    const maxRequests = 30; // 最大30回のリクエストで制限（安全のため）
 
     // ページネーションでデータを取得
     while (requestCount < maxRequests) {
       const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/public');
-      url.searchParams.set('limit', '100');         // 1回のリクエストで最大100件取得
+      url.searchParams.set('limit', '40');         // 1回のリクエストで最大40件取得
       url.searchParams.set('max_id', max);         // この ID より小さい（古い）投稿を取得
       url.searchParams.set('since_id', sinceId);   // この ID より大きい（新しい）投稿を取得
       url.searchParams.set('local', 'true');       // ローカルタイムライン（そのサーバーのみ）
@@ -98,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
       requestCount++;
 
       // 進捗を表示（多くの投稿がある場合）
-      if (all.length > 100) {
+      if (all.length > 10) {
         document.getElementById('result').innerHTML =
           `<div class="loading">取得中... ${all.length}件取得済み</div>`;
       }
@@ -107,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
       max = (BigInt(batch[batch.length-1].id) - 1n).toString();
 
       // 取得件数が40件未満なら最後のページ
-      if (batch.length < 100) break;
+      if (batch.length < 40) break;
     }
 
     return all;
