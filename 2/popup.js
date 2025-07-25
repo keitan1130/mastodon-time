@@ -12,11 +12,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function updateInputUI() {
     const type = document.querySelector('input[name="inputType"]:checked').value;
-    inputField.value = '';
     if (type === 'id') {
-      inputField.placeholder = '例: 114913703535102955';
+      inputField.value = '114914440521507516';
+      inputField.placeholder = '';
     } else {
-      inputField.placeholder = '例: 2025-07-10 10';
+      // 1時間前の時刻を取得して実際の値として設定
+      const now = new Date();
+      now.setHours(now.getHours() - 1); // 1時間前
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hour = String(now.getHours()).padStart(2, '0');
+      inputField.value = `${year}-${month}-${day} ${hour}`;
+      inputField.placeholder = '';
     }
     resultDiv.innerHTML = '';
   }
@@ -45,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 範囲設定: 指定時間から1時間後まで
         const startJst = new Date(Y, Mo-1, D, hh, 0, 0, 0);
-        const endJst = new Date(Y, Mo-1, D, hh + 1, 0, 0, 0);
+        const endJst = new Date(Y, Mo-1, D, hh+1, 0, 0, 0);
 
         const startId = generateSnowflakeIdFromJst(startJst);
         const endId = generateSnowflakeIdFromJst(endJst);
@@ -64,23 +72,44 @@ document.addEventListener('DOMContentLoaded', function() {
     return res.json();
   }
 
-  // 日時レンジ内の公開タイムラインを取得
+  // 日時レンジ内のローカルタイムラインを取得
+  // ローカルタイムライン = そのサーバー（mastodon.compositecomputer.club）のユーザーの投稿のみ
   async function fetchPublicTimelineInRange(sinceId, maxId) {
     let all = [];
     let max = maxId;
-    while (true) {
+    let requestCount = 0;
+    const maxRequests = 20; // 最大20回のリクエストで制限（安全のため）
+
+    // ページネーションでデータを取得
+    while (requestCount < maxRequests) {
       const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/public');
-      url.searchParams.set('limit', '40');
-      url.searchParams.set('max_id', max);
-      url.searchParams.set('since_id', sinceId);
+      url.searchParams.set('limit', '100');         // 1回のリクエストで最大100件取得
+      url.searchParams.set('max_id', max);         // この ID より小さい（古い）投稿を取得
+      url.searchParams.set('since_id', sinceId);   // この ID より大きい（新しい）投稿を取得
+      url.searchParams.set('local', 'true');       // ローカルタイムライン（そのサーバーのみ）
+
       const res = await fetch(url);
       if (!res.ok) throw new Error('タイムライン取得エラー');
+
       const batch = await res.json();
-      if (!batch.length) break;
-      all = all.concat(batch);
+      if (!batch.length) break;  // もう取得する投稿がない
+
+      all = all.concat(batch);   // 結果をまとめる
+      requestCount++;
+
+      // 進捗を表示（多くの投稿がある場合）
+      if (all.length > 100) {
+        document.getElementById('result').innerHTML =
+          `<div class="loading">取得中... ${all.length}件取得済み</div>`;
+      }
+
+      // 次のページ取得用に max_id を更新（最後の投稿ID - 1）
       max = (BigInt(batch[batch.length-1].id) - 1n).toString();
-      if (batch.length < 40) break;
+
+      // 取得件数が40件未満なら最後のページ
+      if (batch.length < 100) break;
     }
+
     return all;
   }
 
@@ -97,17 +126,23 @@ document.addEventListener('DOMContentLoaded', function() {
       resultDiv.innerHTML = '<div>該当する投稿がありません</div>';
       return;
     }
-    resultDiv.innerHTML = posts.map(post => {
+
+    // 投稿数が多い場合は件数を表示
+    const countText = posts.length > 10 ? `<div style="margin-bottom: 10px; font-weight: bold; color: #666;">取得件数: ${posts.length}件</div>` : '';
+
+    resultDiv.innerHTML = countText + posts.map(post => {
       const t = new Date(post.created_at).toLocaleString('ja-JP');
       const user = post.account.display_name || post.account.username;
       const h = `@${post.account.username}`;
-      const txt = stripHtmlTags(post.content);
+      const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
+
       return `<div class="post-item" data-url="${post.url}">
         <div><strong>${escapeHtml(user)}</strong> ${escapeHtml(h)}</div>
-        <div>${t} ID:${post.id}</div>
+        <div style="font-size: 11px; color: #888;">${t} ID:${post.id}</div>
         <div>${escapeHtml(txt)}</div>
       </div>`;
     }).join('');
+
     document.querySelectorAll('.post-item').forEach(el => {
       el.addEventListener('click', () => chrome.tabs.create({ url: el.dataset.url }));
     });

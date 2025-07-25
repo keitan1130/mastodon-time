@@ -1,10 +1,32 @@
-# Getting Started With Google Chrome Extensions (Hello World)
+# Mastodon投稿ビューア Chrome拡張機能
 
-This example demonstrates how to create a simple "Hello World" Chrome Extension.
-For more details, visit the [official tutorial](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
+この拡張機能は、Mastodonサーバー（mastodon.compositecomputer.club）の投稿を検索・表示するためのChrome拡張機能です。
 
-## Running This Extension
+## 機能
 
-1. Clone this repository.
-2. Load this directory in Chrome as an [unpacked extension](https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked).
-3. Click the extension icon in the Chrome toolbar, then select the "Hello Extensions" extension. A popup will appear displaying the text "Hello Extensions".
+- **投稿ID検索**: 特定の投稿IDで単一の投稿を取得
+- **時間範囲検索**: 指定した時間（1時間分）のローカルタイムライン投稿を取得
+- **ワンクリックアクセス**: 投稿をクリックしてMastodonの元投稿を新しいタブで開く
+
+## 使用方法
+
+1. 拡張機能アイコンをクリックしてポップアップを開く
+2. 入力方式を選択:
+   - **時間範囲**: `YYYY-MM-DD HH` 形式（例: 2025-07-26 14）
+   - **投稿ID**: 19桁の数字（例: 114914440521507516）
+3. 「取得」ボタンをクリック
+4. 結果の投稿をクリックすると元投稿が新しいタブで開く
+
+## インストール方法
+
+1. このディレクトリをローカルにダウンロード
+2. Chromeで `chrome://extensions/` を開く
+3. 右上の「デベロッパーモード」を有効にする
+4. 「パッケージ化されていない拡張機能を読み込む」をクリック
+5. このディレクトリを選択
+
+## 技術仕様
+
+- 対象サーバー: mastodon.compositecomputer.club
+- タイムライン: ローカル（そのサーバーのユーザーのみ）
+- 最大取得件数: 約2000件（安全制限）
