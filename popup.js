@@ -19,9 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
       inputField.placeholder = '';
       if (timeRangeSelector) timeRangeSelector.style.display = 'none';
     } else {
-      // 1時間前の時刻を取得して実際の値として設定
+      // 時刻を取得して実際の値として設定
       const now = new Date();
-      now.setHours(now.getHours() - 1); // 1時間前
+      now.setHours(now.getHours());
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
