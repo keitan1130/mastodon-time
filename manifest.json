@@ -1,0 +1,17 @@
+{
+  "name": "Mastodon Post Viewer",
+  "description": "Mastodon投稿を取得して表示する拡張機能",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "hello.html",
+    "default_icon": "hello_extensions.png"
+  },
+  "permissions": [
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://mastodon.compositecomputer.club/*"
+  ]
+}
