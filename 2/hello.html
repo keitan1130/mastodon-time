@@ -1,0 +1,165 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body {
+        width: 350px;
+        padding: 15px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .input-type-selector {
+        margin-bottom: 5px;
+      }
+
+      .radio-group {
+        display: flex;
+        gap: 15px;
+        margin-top: 5px;
+      }
+
+      .radio-label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .radio-label input[type="radio"] {
+        margin: 0;
+        cursor: pointer;
+      }
+
+      input {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      button {
+        padding: 8px 16px;
+        background-color: #6364ff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      button:hover {
+        background-color: #5a5bdd;
+      }
+
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+
+      .post-content {
+        margin-top: 15px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #f9f9f9;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .post-item {
+        margin-bottom: 10px;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #fff;
+        cursor: pointer;
+        transition: background-color 0.2s, box-shadow 0.2s;
+      }
+
+      .post-item:hover {
+        background-color: #e3f2fd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+
+      .post-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .clickable-post {
+        cursor: pointer;
+        transition: background-color 0.2s, box-shadow 0.2s;
+      }
+
+      .clickable-post:hover {
+        background-color: #e3f2fd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+
+      .click-hint {
+        margin-top: 10px;
+        font-size: 11px;
+        color: #888;
+        text-align: center;
+        font-style: italic;
+      }
+
+      .error {
+        color: #d32f2f;
+        font-size: 12px;
+        margin-top: 5px;
+      }
+
+      .loading {
+        text-align: center;
+        color: #666;
+      }
+
+      .post-meta {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .post-text {
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Mastodon投稿ビューア</h2>
+
+      <div class="input-type-selector">
+        <label>入力方式:</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="inputType" value="time" checked>
+            <span>時間範囲</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="inputType" value="id">
+            <span>投稿ID</span>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <input type="text" id="postIdOrTime" placeholder="入力してください">
+      </div>
+
+      <button id="fetchPost">取得</button>
+
+      <div id="result"></div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
