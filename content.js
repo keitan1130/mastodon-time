@@ -26,11 +26,11 @@ function injectMastodonViewer() {
   viewerContainer.innerHTML = `
     <div class="mastodon-viewer-header">
       <h3>投稿検索</h3>
-      <button id="mastodon-viewer-toggle" class="mastodon-toggle-btn">▼</button>
+      <button id="mastodon-viewer-toggle" class="mastodon-toggle-btn">▶</button>
     </div>
-    <div id="mastodon-viewer-content" class="mastodon-viewer-content">
+    <div id="mastodon-viewer-content" class="mastodon-viewer-content" style="display: none;">
       <div class="mastodon-input-type-selector">
-        <label>検索方式:</label>
+        <label>入力方式:</label>
         <div class="mastodon-radio-group">
           <label class="mastodon-radio-label">
             <input type="radio" name="mastodonInputType" value="time" checked>
@@ -48,7 +48,7 @@ function injectMastodonViewer() {
       </div>
 
       <div id="mastodon-main-input" class="mastodon-input-group">
-        <input type="text" id="mastodonPostIdOrTime" placeholder="YYYY-MM-DD HH">
+        <input type="text" id="mastodonPostIdOrTime" placeholder="入力してください">
       </div>
 
       <div id="mastodonUserInput" class="mastodon-input-group" style="display: none;">
@@ -90,9 +90,9 @@ function setupEventListeners() {
 
   // 折りたたみ機能
   toggleBtn.addEventListener('click', function() {
-    const isVisible = content.style.display !== 'none';
-    content.style.display = isVisible ? 'none' : 'block';
-    this.textContent = isVisible ? '▶' : '▼';
+    const isHidden = content.style.display === 'none';
+    content.style.display = isHidden ? 'block' : 'none';
+    this.textContent = isHidden ? '▼' : '▶';
   });
 
   // ラジオボタンの変更イベント
@@ -295,7 +295,7 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
   let all = [];
   let max = maxId;
   let requestCount = 0;
-  const maxRequests = 10; // content scriptでは少し制限を緩く
+  const maxRequests = 30;
 
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
@@ -420,7 +420,7 @@ async function fetchUserPosts(username, timeFilter = null) {
 
     maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
     if (batch.length < 40) break;
-    if (!timeFilter && all.length >= 100) break; // content scriptでは少し制限
+    if (!timeFilter && all.length >= 200) break; // content scriptでポップアップ版と同じ制限
   }
 
   return all;
@@ -439,9 +439,7 @@ function displayPosts(posts) {
     return;
   }
 
-  const countText = posts.length > 10 ? `<div class="mastodon-count">取得件数: ${posts.length}件</div>` : '';
-
-  resultDiv.innerHTML = countText + posts.map(post => {
+  resultDiv.innerHTML = posts.map(post => {
     const t = new Date(post.created_at).toLocaleString('ja-JP');
     const user = post.account.display_name || post.account.username;
     const h = `@${post.account.username}`;
