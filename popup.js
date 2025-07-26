@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stored = await getStorageAsync(keys);
 
     while (requestCount < maxRequests) {
-      const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/home');
+      const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/public');
       url.searchParams.set('limit', '40');
       url.searchParams.set('max_id', max);
       url.searchParams.set('since_id', sinceId);
@@ -223,45 +223,81 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const account = await accountRes.json();
 
-    // 2. そのユーザーの投稿を取得
-    const statusesUrl = new URL(`https://mastodon.compositecomputer.club/api/v1/accounts/${account.id}/statuses`);
+    // 2. そのユーザーの投稿を大量取得（ページング対応）
+    let all = [];
+    let maxId = null;
+    let requestCount = 0;
+    const maxRequests = 30; // 最大30回のリクエストで制限（安全のため）
 
-    if (timeFilter) {
-      // 時間フィルタがある場合、Snowflake IDで範囲指定
-      const sinceId = generateSnowflakeIdFromJst(timeFilter.start);
-      const maxId = generateSnowflakeIdFromJst(timeFilter.end);
-      statusesUrl.searchParams.set('since_id', sinceId);
-      statusesUrl.searchParams.set('max_id', maxId);
+    while (requestCount < maxRequests) {
+      const statusesUrl = new URL(`https://mastodon.compositecomputer.club/api/v1/accounts/${account.id}/statuses`);
       statusesUrl.searchParams.set('limit', '40');
-    } else {
-      // 時間フィルタがない場合、最新40件
-      statusesUrl.searchParams.set('limit', '40');
-    }
 
-    const statusesRes = await fetch(statusesUrl, {
-      headers: {
-        "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-        "X-Csrf-Token": stored["x_csrf_token"],
-        "Authorization": stored["authorization"]
-      },
-      credentials: "include"
-    });
+      if (maxId) {
+        statusesUrl.searchParams.set('max_id', maxId);
+      }
 
-    if (!statusesRes.ok) {
-      throw new Error(`ユーザー @${username} の投稿取得に失敗しました`);
-    }
+      if (timeFilter) {
+        // 時間フィルタがある場合、Snowflake IDで範囲指定
+        const sinceId = generateSnowflakeIdFromJst(timeFilter.start);
+        const maxIdFromTime = generateSnowflakeIdFromJst(timeFilter.end);
+        statusesUrl.searchParams.set('since_id', sinceId);
+        if (!maxId) {
+          statusesUrl.searchParams.set('max_id', maxIdFromTime);
+        }
+      }
 
-    const posts = await statusesRes.json();
-
-    // 時間フィルタがある場合、さらに厳密に時間でフィルタリング
-    if (timeFilter) {
-      return posts.filter(post => {
-        const postTime = new Date(post.created_at);
-        return postTime >= timeFilter.start && postTime <= timeFilter.end;
+      const statusesRes = await fetch(statusesUrl, {
+        headers: {
+          "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+          "X-Csrf-Token": stored["x_csrf_token"],
+          "Authorization": stored["authorization"]
+        },
+        credentials: "include"
       });
+
+      if (!statusesRes.ok) {
+        throw new Error(`ユーザー @${username} の投稿取得に失敗しました`);
+      }
+
+      const batch = await statusesRes.json();
+      if (!batch.length) break; // もう取得する投稿がない
+
+      // 時間フィルタがある場合、厳密に時間でフィルタリング
+      let filteredBatch = batch;
+      if (timeFilter) {
+        filteredBatch = batch.filter(post => {
+          const postTime = new Date(post.created_at);
+          return postTime >= timeFilter.start && postTime <= timeFilter.end;
+        });
+
+        // 時間範囲外の投稿が見つかったら、それ以降は不要なので終了
+        if (filteredBatch.length < batch.length) {
+          all = all.concat(filteredBatch);
+          break;
+        }
+      }
+
+      all = all.concat(filteredBatch);
+      requestCount++;
+
+      // 進捗を表示（多くの投稿がある場合）
+      if (all.length > 10) {
+        document.getElementById('result').innerHTML =
+          `<div class="loading">取得中... ${all.length}件取得済み</div>`;
+      }
+
+      // 次のページ取得用に max_id を更新（最後の投稿ID - 1）
+      maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
+
+      // 取得件数が40件未満なら最後のページ
+      if (batch.length < 40) break;
+
+      // 時間フィルタなしで十分な件数取得したら終了
+      if (!timeFilter && all.length >= 200) break;
     }
 
-    return posts;
+    return all;
   }
 
   // --- ID <-> JST 変換 ---
