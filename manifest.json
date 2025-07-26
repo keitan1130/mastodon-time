@@ -9,15 +9,9 @@
   },
   "permissions": [
     "activeTab",
-    "tabs",
-    "webRequest",
-    "cookies",
-    "storage"
+    "tabs"
   ],
   "host_permissions": [
     "https://mastodon.compositecomputer.club/*"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  }
+  ]
 }
