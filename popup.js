@@ -78,6 +78,13 @@ document.addEventListener('DOMContentLoaded', function() {
     return res.json();
   }
 
+  // 認証情報取得
+  function getStorageAsync(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(keys, resolve);
+    });
+  }
+
   // 日時レンジ内のローカルタイムラインを取得
   // ローカルタイムライン = そのサーバー（mastodon.compositecomputer.club）のユーザーの投稿のみ
   async function fetchPublicTimelineInRange(sinceId, maxId) {
@@ -86,15 +93,24 @@ document.addEventListener('DOMContentLoaded', function() {
     let requestCount = 0;
     const maxRequests = 30; // 最大30回のリクエストで制限（安全のため）
 
-    // ページネーションでデータを取得
-    while (requestCount < maxRequests) {
-      const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/public');
-      url.searchParams.set('limit', '40');         // 1回のリクエストで最大40件取得
-      url.searchParams.set('max_id', max);         // この ID より小さい（古い）投稿を取得
-      url.searchParams.set('since_id', sinceId);   // この ID より大きい（新しい）投稿を取得
-      url.searchParams.set('local', 'true');       // ローカルタイムライン（そのサーバーのみ）
+    const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
+    const stored = await getStorageAsync(keys);
 
-      const res = await fetch(url);
+    while (requestCount < maxRequests) {
+      const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/home');
+      url.searchParams.set('limit', '40');
+      url.searchParams.set('max_id', max);
+      url.searchParams.set('since_id', sinceId);
+
+      const res = await fetch(url, {
+        headers: {
+          "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+          "X-Csrf-Token": stored["x_csrf_token"],
+          "Authorization": stored["authorization"]
+        },
+        credentials: "include" // 忘れずに（Cookieを送る場合）
+      });
+
       if (!res.ok) throw new Error('タイムライン取得エラー');
 
       const batch = await res.json();
