@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
       // 時間範囲検索
       inputField.style.display = 'block';
       const now = new Date();
-      now.setHours(now.getHours());
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
@@ -113,13 +112,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!raw) return showError('時間を入力してください');
 
         // "YYYY-MM-DD HH" 形式のみ
-        let mHour = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2})$/);
-        if (!mHour) throw new Error('日時形式は YYYY-MM-DD HH です');
+        const timeMatch = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2})$/);
+        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD HH です');
 
-        const [Y,Mo,D] = mHour[1].split('-').map(Number);
-        const hh = Number(mHour[2]);
+        const [Y, Mo, D] = timeMatch[1].split('-').map(Number);
+        const hh = Number(timeMatch[2]);
         const timeRangeSelect = document.getElementById('timeRange');
-        const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1; // デフォルト1時間
+        const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
 
         // 範囲設定: 指定時間から選択した時間数後まで
         const startJst = new Date(Y, Mo-1, D, hh, 0, 0, 0);
@@ -165,6 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
       url.searchParams.set('limit', '40');
       url.searchParams.set('max_id', max);
       url.searchParams.set('since_id', sinceId);
+      url.searchParams.set('local', 'true'); // ローカルタイムラインのみ取得
 
       const res = await fetch(url, {
         headers: {
