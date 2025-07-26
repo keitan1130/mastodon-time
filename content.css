@@ -1,0 +1,250 @@
+/* Mastodon Timeline Viewer Content Script Styles */
+
+.mastodon-viewer-container {
+  background: var(--background-color, #fff);
+  border: 1px solid var(--background-border-color, #c0cdd9);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.mastodon-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--background-color, #f8f9fb);
+  border-bottom: 1px solid var(--background-border-color, #c0cdd9);
+  border-radius: 8px 8px 0 0;
+}
+
+.mastodon-viewer-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-text-color, #0e1419);
+}
+
+.mastodon-toggle-btn {
+  background: none;
+  border: 1px solid transparent;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 4px;
+  color: var(--highlight-text-color, #6364ff);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.mastodon-toggle-btn:hover {
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
+  border-color: var(--highlight-text-color, #6364ff);
+}
+
+.mastodon-viewer-content {
+  padding: 16px;
+}
+
+.mastodon-input-type-selector {
+  margin-bottom: 12px;
+}
+
+.mastodon-input-type-selector label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--primary-text-color, #0e1419);
+  font-size: 14px;
+}
+
+.mastodon-radio-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mastodon-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--primary-text-color, #0e1419);
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-radio-label:hover {
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
+}
+
+.mastodon-radio-label input[type="radio"] {
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--highlight-text-color, #6364ff);
+}
+
+.mastodon-input-group {
+  margin-bottom: 12px;
+}
+
+.mastodon-input-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--secondary-text-color, #606984);
+  font-size: 13px;
+}
+
+.mastodon-input-group input[type="text"],
+.mastodon-input-group input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--simple-background-color, #fff);
+  color: var(--primary-text-color, #0e1419);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mastodon-input-group input[type="text"]:focus,
+.mastodon-input-group input[type="number"]:focus {
+  outline: none;
+  border-color: var(--highlight-text-color, #6364ff);
+  box-shadow: 0 0 0 2px rgba(99, 100, 255, 0.1);
+}
+
+.mastodon-fetch-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--highlight-text-color, #6364ff);
+  color: var(--button-text-color, #fff);
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.mastodon-fetch-btn:hover {
+  background: var(--highlight-text-color-darker, #5853d4);
+  transform: translateY(-1px);
+}
+
+.mastodon-fetch-btn:active {
+  transform: translateY(0);
+}
+
+.mastodon-result {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border-radius: 6px;
+  background: var(--simple-background-color, #fff);
+}
+
+.mastodon-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--secondary-text-color, #606984);
+  font-size: 14px;
+}
+
+.mastodon-error {
+  color: var(--error-text-color, #d32f2f);
+  background: var(--error-background-color, rgba(211, 47, 47, 0.1));
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin: 8px 0;
+  border: 1px solid var(--error-border-color, rgba(211, 47, 47, 0.2));
+}
+
+.mastodon-no-results {
+  text-align: center;
+  padding: 20px;
+  color: var(--secondary-text-color, #606984);
+  font-size: 14px;
+}
+
+.mastodon-count {
+  padding: 8px 12px;
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
+  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--highlight-text-color, #6364ff);
+}
+
+.mastodon-post-item {
+  padding: 12px;
+  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--simple-background-color, #fff);
+}
+
+.mastodon-post-item:hover {
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
+}
+
+.mastodon-post-item:last-child {
+  border-bottom: none;
+}
+
+.mastodon-post-header {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--primary-text-color, #0e1419);
+  font-size: 14px;
+}
+
+.mastodon-post-meta {
+  font-size: 11px;
+  color: var(--secondary-text-color, #606984);
+  margin-bottom: 8px;
+}
+
+.mastodon-post-content {
+  line-height: 1.4;
+  color: var(--primary-text-color, #0e1419);
+  font-size: 13px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 500px) {
+  .mastodon-radio-group {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mastodon-viewer-container {
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .mastodon-viewer-container {
+    --background-color: #191b22;
+    --background-border-color: #393f4f;
+    --primary-text-color: #fff;
+    --secondary-text-color: #9baec8;
+    --highlight-text-color: #8c8dff;
+    --highlight-text-color-darker: #7c7bff;
+    --simple-background-color: #191b22;
+    --ui-base-lighter-color: #393f4f;
+    --ui-highlight-color: rgba(140, 141, 255, 0.1);
+    --button-text-color: #fff;
+    --error-text-color: #ff6b6b;
+    --error-background-color: rgba(255, 107, 107, 0.1);
+    --error-border-color: rgba(255, 107, 107, 0.2);
+  }
+}

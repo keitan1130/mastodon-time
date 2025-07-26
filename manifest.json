@@ -19,5 +19,12 @@
   ],
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mastodon.compositecomputer.club/*"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ]
 }
