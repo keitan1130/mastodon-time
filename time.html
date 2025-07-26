@@ -148,11 +148,25 @@
             <input type="radio" name="inputType" value="id">
             <span>投稿ID</span>
           </label>
+          <label class="radio-label">
+            <input type="radio" name="inputType" value="user">
+            <span>ユーザー名</span>
+          </label>
         </div>
       </div>
 
       <div>
         <input type="text" id="postIdOrTime" placeholder="入力してください">
+      </div>
+
+      <div id="userInput" style="display: none;">
+        <label for="usernameField">ユーザー名:</label>
+        <input type="text" id="usernameField" placeholder="@username">
+      </div>
+
+      <div id="timeInput" style="display: none;">
+        <label for="timeField">時間:</label>
+        <input type="text" id="timeField" placeholder="YYYY-MM-DD HH">
       </div>
 
       <div id="timeRangeSelector">
