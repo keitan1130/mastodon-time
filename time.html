@@ -6,7 +6,9 @@
       body {
         width: 350px;
         padding: 15px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        background: var(--background-color, #fff);
+        color: var(--primary-text-color, #0e1419);
       }
 
       .container {
@@ -15,14 +17,30 @@
         gap: 10px;
       }
 
+      h2 {
+        margin: 0 0 16px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary-text-color, #0e1419);
+      }
+
       .input-type-selector {
         margin-bottom: 5px;
+      }
+
+      .input-type-selector label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--primary-text-color, #0e1419);
+        font-size: 14px;
       }
 
       .radio-group {
         display: flex;
         gap: 15px;
         margin-top: 5px;
+        flex-wrap: wrap;
       }
 
       .radio-label {
@@ -30,63 +48,99 @@
         align-items: center;
         gap: 5px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 13px;
+        color: var(--primary-text-color, #0e1419);
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+      }
+
+      .radio-label:hover {
+        background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
       }
 
       .radio-label input[type="radio"] {
         margin: 0;
         cursor: pointer;
+        accent-color: var(--highlight-text-color, #6364ff);
+      }
+
+      label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 4px;
+        color: var(--secondary-text-color, #606984);
+        font-size: 13px;
       }
 
       input {
-        padding: 8px;
-        border: 1px solid #ccc;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
         border-radius: 4px;
         font-size: 14px;
+        background: var(--simple-background-color, #fff);
+        color: var(--primary-text-color, #0e1419);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        box-sizing: border-box;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--highlight-text-color, #6364ff);
+        box-shadow: 0 0 0 2px rgba(99, 100, 255, 0.1);
       }
 
       button {
-        padding: 8px 16px;
-        background-color: #6364ff;
-        color: white;
+        width: 100%;
+        padding: 10px 16px;
+        background: var(--highlight-text-color, #6364ff);
+        color: var(--button-text-color, #fff);
         border: none;
         border-radius: 4px;
-        cursor: pointer;
         font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
 
       button:hover {
-        background-color: #5a5bdd;
+        background: var(--highlight-text-color-darker, #5853d4);
+        transform: translateY(-1px);
+      }
+
+      button:active {
+        transform: translateY(0);
       }
 
       button:disabled {
-        background-color: #ccc;
+        background-color: var(--ui-base-lighter-color, #c0cdd9);
         cursor: not-allowed;
+        transform: none;
       }
 
       .post-content {
         margin-top: 15px;
         padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        background-color: #f9f9f9;
+        border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+        border-radius: 6px;
+        background: var(--simple-background-color, #fff);
         max-height: 300px;
         overflow-y: auto;
       }
 
       .post-item {
         margin-bottom: 10px;
-        padding: 8px;
-        border: 1px solid #ddd;
+        padding: 12px;
+        border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
         border-radius: 4px;
-        background-color: #fff;
+        background: var(--simple-background-color, #fff);
         cursor: pointer;
-        transition: background-color 0.2s, box-shadow 0.2s;
+        transition: all 0.2s ease;
       }
 
       .post-item:hover {
-        background-color: #e3f2fd;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
       }
 
       .post-item:last-child {
@@ -95,41 +149,67 @@
 
       .clickable-post {
         cursor: pointer;
-        transition: background-color 0.2s, box-shadow 0.2s;
+        transition: all 0.2s ease;
       }
 
       .clickable-post:hover {
-        background-color: #e3f2fd;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
       }
 
       .click-hint {
         margin-top: 10px;
         font-size: 11px;
-        color: #888;
+        color: var(--secondary-text-color, #606984);
         text-align: center;
         font-style: italic;
       }
 
       .error {
-        color: #d32f2f;
-        font-size: 12px;
-        margin-top: 5px;
+        color: var(--error-text-color, #d32f2f);
+        background: var(--error-background-color, rgba(211, 47, 47, 0.1));
+        padding: 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        margin: 8px 0;
+        border: 1px solid var(--error-border-color, rgba(211, 47, 47, 0.2));
       }
 
       .loading {
         text-align: center;
-        color: #666;
+        padding: 20px;
+        color: var(--secondary-text-color, #606984);
+        font-size: 14px;
       }
 
       .post-meta {
-        font-size: 12px;
-        color: #666;
+        font-size: 11px;
+        color: var(--secondary-text-color, #606984);
         margin-bottom: 8px;
       }
 
       .post-text {
         line-height: 1.4;
+        color: var(--primary-text-color, #0e1419);
+        font-size: 13px;
+      }
+
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
+        body {
+          --background-color: #191b22;
+          --background-border-color: #393f4f;
+          --primary-text-color: #fff;
+          --secondary-text-color: #9baec8;
+          --highlight-text-color: #8c8dff;
+          --highlight-text-color-darker: #7c7bff;
+          --simple-background-color: #191b22;
+          --ui-base-lighter-color: #393f4f;
+          --ui-highlight-color: rgba(140, 141, 255, 0.1);
+          --button-text-color: #fff;
+          --error-text-color: #ff6b6b;
+          --error-background-color: rgba(255, 107, 107, 0.1);
+          --error-border-color: rgba(255, 107, 107, 0.2);
+        }
       }
     </style>
   </head>
@@ -171,7 +251,7 @@
 
       <div id="timeRangeSelector">
         <label for="timeRange">検索範囲:</label>
-        <input type="number" id="timeRange" value="1" min="1" max="24" style="width: 60px;">
+        <input type="number" id="timeRange" value="1" min="1" max="24" style="width: 80px;">
         <span>時間</span>
       </div>
 

@@ -63,7 +63,7 @@ function injectMastodonViewer() {
 
       <div id="mastodonTimeRangeSelector" class="mastodon-input-group">
         <label for="mastodonTimeRange">検索範囲:</label>
-        <input type="number" id="mastodonTimeRange" value="1" min="1" max="24" style="width: 60px;">
+        <input type="number" id="mastodonTimeRange" value="1" min="1" max="24" style="width: 80px;">
         <span>時間</span>
       </div>
 
