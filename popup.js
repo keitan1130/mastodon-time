@@ -9,8 +9,54 @@ document.addEventListener('DOMContentLoaded', function() {
   const radioButtons = document.querySelectorAll('input[name="inputType"]');
 
   // ラジオボタンの変更イベントで UI を更新
-  radioButtons.forEach(radio => radio.addEventListener('change', updateInputUI));
+  radioButtons.forEach(radio => {
+    radio.addEventListener('change', updateInputUI);
+    // ラジオボタンの変更時に選択状態を保存
+    radio.addEventListener('change', function() {
+      localStorage.setItem('mastodon-inputType', this.value);
+    });
+  });
+
+  // 前回の選択状態を復元
+  const savedInputType = localStorage.getItem('mastodon-inputType');
+  if (savedInputType) {
+    const targetRadio = document.querySelector(`input[name="inputType"][value="${savedInputType}"]`);
+    if (targetRadio) {
+      targetRadio.checked = true;
+    }
+  }
+
   updateInputUI();
+
+  // 入力値の変更を自動保存
+  inputField.addEventListener('input', function() {
+    const type = document.querySelector('input[name="inputType"]:checked').value;
+    if (type === 'id') {
+      localStorage.setItem('mastodon-postId', this.value);
+    } else if (type === 'time') {
+      localStorage.setItem('mastodon-timeRange', this.value);
+    }
+  });
+
+  if (usernameField) {
+    usernameField.addEventListener('input', function() {
+      localStorage.setItem('mastodon-username', this.value);
+    });
+  }
+
+  if (timeField) {
+    timeField.addEventListener('input', function() {
+      localStorage.setItem('mastodon-userTime', this.value);
+    });
+  }
+
+  // 時間範囲セレクタの変更も保存
+  const timeRangeSelect = document.getElementById('timeRange');
+  if (timeRangeSelect) {
+    timeRangeSelect.addEventListener('change', function() {
+      localStorage.setItem('mastodon-hourRange', this.value);
+    });
+  }
 
   function updateInputUI() {
     const type = document.querySelector('input[name="inputType"]:checked').value;
@@ -25,41 +71,63 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (type === 'id') {
       inputField.style.display = 'block';
-      inputField.value = '114914440521507516';
+      // 前回の入力を復元、なければデフォルト値
+      inputField.value = localStorage.getItem('mastodon-postId') || '114914719105992385';
       inputField.placeholder = '投稿ID';
       if (timeRangeSelector) timeRangeSelector.style.display = 'none';
     } else if (type === 'user') {
       if (userInput) userInput.style.display = 'block';
       if (timeInput) timeInput.style.display = 'block';
 
-      // ユーザー名のデフォルト値
+      // ユーザー名の前回値を復元、なければデフォルト値
       if (usernameField) {
-        usernameField.value = '@keitan';
+        usernameField.value = localStorage.getItem('mastodon-username') || '@keitan';
       }
 
-      // 時間のデフォルト値（現在時刻）
+      // 時間の前回値を復元、なければ現在時刻
       if (timeField) {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hour = String(now.getHours()).padStart(2, '0');
-        timeField.value = `${year}-${month}-${day} ${hour}`;
+        const savedTime = localStorage.getItem('mastodon-userTime');
+        if (savedTime) {
+          timeField.value = savedTime;
+        } else {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hour = String(now.getHours()).padStart(2, '0');
+          timeField.value = `${year}-${month}-${day} ${hour}`;
+        }
       }
 
       if (timeRangeSelector) timeRangeSelector.style.display = 'block';
     } else {
       // 時間範囲検索
       inputField.style.display = 'block';
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hour = String(now.getHours()).padStart(2, '0');
-      inputField.value = `${year}-${month}-${day} ${hour}`;
+      // 前回の時間範囲検索の値を復元、なければ現在時刻
+      const savedTimeRange = localStorage.getItem('mastodon-timeRange');
+      if (savedTimeRange) {
+        inputField.value = savedTimeRange;
+      } else {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hour = String(now.getHours()).padStart(2, '0');
+        inputField.value = `${year}-${month}-${day} ${hour}`;
+      }
       inputField.placeholder = 'YYYY-MM-DD HH';
       if (timeRangeSelector) timeRangeSelector.style.display = 'block';
     }
+
+    // 時間範囲セレクタの値も復元
+    const timeRangeSelect = document.getElementById('timeRange');
+    if (timeRangeSelect) {
+      const savedRange = localStorage.getItem('mastodon-hourRange');
+      if (savedRange) {
+        timeRangeSelect.value = savedRange;
+      }
+    }
+
     resultDiv.innerHTML = '';
   }
 
