@@ -378,12 +378,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- 表示 ---
   function displayPosts(posts) {
     if (!posts.length) {
-      resultDiv.innerHTML = '<div>該当する投稿がありません</div>';
+      resultDiv.innerHTML = '<div class="no-results">該当する投稿がありません</div>';
       return;
     }
 
-    // 投稿数が多い場合は件数を表示
-    const countText = posts.length > 10 ? `<div style="margin-bottom: 10px; font-weight: bold; color: #666;">取得件数: ${posts.length}件</div>` : '';
+    // 常に取得件数を表示
+    const countText = `<div class="count">取得件数: ${posts.length}件</div>`;
 
     resultDiv.innerHTML = countText + posts.map(post => {
       const t = new Date(post.created_at).toLocaleString('ja-JP');

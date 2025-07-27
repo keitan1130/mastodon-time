@@ -164,7 +164,7 @@ function updateInputUI() {
 
   if (type === 'id') {
     mainInput.style.display = 'block';
-    mainInputField.value = localStorage.getItem('mastodon-content-postId') || '114914440521507516';
+    mainInputField.value = localStorage.getItem('mastodon-content-postId') || '114914719105992385';
     mainInputField.placeholder = '投稿ID';
     timeRangeSelector.style.display = 'none';
   } else if (type === 'user') {
@@ -439,7 +439,10 @@ function displayPosts(posts) {
     return;
   }
 
-  resultDiv.innerHTML = posts.map(post => {
+  // 常に取得件数を表示
+  const countText = `<div class="mastodon-count">取得件数: ${posts.length}件</div>`;
+
+  resultDiv.innerHTML = countText + posts.map(post => {
     const t = new Date(post.created_at).toLocaleString('ja-JP');
     const user = post.account.display_name || post.account.username;
     const h = `@${post.account.username}`;
