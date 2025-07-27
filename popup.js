@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let all = [];
     let max = maxId;
     let requestCount = 0;
-    const maxRequests = 50;
+    const maxRequests = 275;
 
     const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
     const stored = await getStorageAsync(keys);
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let all = [];
     let maxId = null;
     let requestCount = 0;
-    const maxRequests = 50; // 最大50回のリクエストで制限）
+    const maxRequests = 275; // 最大275回のリクエストで制限）
 
     while (requestCount < maxRequests) {
       const statusesUrl = new URL(`https://mastodon.compositecomputer.club/api/v1/accounts/${account.id}/statuses`);

@@ -1,7 +1,7 @@
 {
   "name": "Mastodon Post Viewer",
   "description": "Mastodon投稿検索",
-  "version": "1.2",
+  "version": "1.21",
   "manifest_version": 3,
   "action": {
     "default_popup": "time.html",
