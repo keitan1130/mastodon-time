@@ -1,6 +1,6 @@
 {
   "name": "Mastodon Post Viewer",
-  "description": "Mastodon投稿を取得表示・時間範囲検索機能付き",
+  "description": "Mastodon投稿検索",
   "version": "1.2",
   "manifest_version": 3,
   "action": {
