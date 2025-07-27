@@ -295,7 +295,7 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
   let all = [];
   let max = maxId;
   let requestCount = 0;
-  const maxRequests = 1000;
+  const maxRequests = 50;
 
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
@@ -362,7 +362,7 @@ async function fetchUserPosts(username, timeFilter = null) {
   let all = [];
   let maxId = null;
   let requestCount = 0;
-  const maxRequests = 1000;
+  const maxRequests = 50;
 
   while (requestCount < maxRequests) {
     const statusesUrl = new URL(`https://mastodon.compositecomputer.club/api/v1/accounts/${account.id}/statuses`);
