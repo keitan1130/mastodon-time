@@ -68,11 +68,11 @@
 }
 
 .mastodon-viewer-content {
-  padding: 15px;
+  padding: 12px;
 }
 
 .mastodon-input-type-selector {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .mastodon-input-type-selector label {
@@ -113,7 +113,7 @@
 }
 
 .mastodon-input-group {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .mastodon-input-group label {
@@ -146,7 +146,7 @@
 
 .mastodon-fetch-btn {
   width: 100%;
-  padding: 10px 16px;
+  padding: 8px 14px;
   background: var(--highlight-text-color, #6364ff);
   color: var(--button-text-color, #fff);
   border: none;
@@ -154,7 +154,7 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
   transition: all 0.2s ease;
 }
 
@@ -168,7 +168,7 @@
 }
 
 .mastodon-result {
-  max-height: 300px;
+  max-height: 500px;
   overflow-y: auto;
   border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 6px;
@@ -204,20 +204,20 @@
 }
 
 .mastodon-count {
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
   border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--highlight-text-color, #6364ff);
   text-align: center;
 }
 
 .mastodon-post-item {
-  margin-bottom: 10px;
-  padding: 12px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
   border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
   background: var(--simple-background-color, #fff);
@@ -235,21 +235,23 @@
 
 .mastodon-post-header {
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   color: var(--primary-text-color, #0e1419);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 .mastodon-post-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--secondary-text-color, #606984);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  line-height: 1.2;
 }
 
 .mastodon-post-content {
-  line-height: 1.4;
+  line-height: 1.3;
   color: var(--primary-text-color, #0e1419);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* Responsive adjustments */
