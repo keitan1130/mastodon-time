@@ -173,6 +173,27 @@
   border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 6px;
   background: var(--simple-background-color, #fff);
+  padding: 8px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* スクロールバーのスタイリング */
+.mastodon-result::-webkit-scrollbar {
+  width: 8px;
+}
+
+.mastodon-result::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.mastodon-result::-webkit-scrollbar-thumb {
+  background: var(--ui-base-lighter-color, #c0cdd9);
+  border-radius: 4px;
+}
+
+.mastodon-result::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-text-color, #606984);
 }
 
 .mastodon-loading {
@@ -292,4 +313,479 @@
     background: var(--ui-highlight-color, rgba(140, 141, 255, 0.1));
     color: var(--highlight-text-color, #8c8dff);
   }
+
+  /* ダークモード時の投稿アイテムスタイル */
+  .mastodon-post-item {
+    background: var(--simple-background-color, #191b22);
+    border-color: var(--ui-base-lighter-color, #393f4f);
+  }
+
+  .mastodon-post-item:hover {
+    background: var(--ui-highlight-color, rgba(140, 141, 255, 0.1));
+    border-color: var(--highlight-text-color, #8c8dff);
+  }
+
+  .mastodon-post-header {
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom-color: var(--ui-base-lighter-color, #393f4f);
+  }
+
+  .mastodon-post-meta-large {
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom-color: var(--ui-base-lighter-color, #393f4f);
+  }
+
+  .mastodon-post-content {
+    background: transparent;
+  }
+
+  .mastodon-post-media {
+    background: rgba(255, 255, 255, 0.03);
+    border-top-color: var(--ui-base-lighter-color, #393f4f);
+  }
+
+  .mastodon-result {
+    background: var(--simple-background-color, #191b22);
+  }
+}
+
+/* ツールチップとポストアイテムのスタイル */
+.mastodon-post-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mastodon-post-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mastodon-post-user-info {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mastodon-post-time-inline {
+  color: var(--darker-text-color, #606984);
+  font-size: 12px;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.mastodon-tooltip-header {
+  margin-bottom: 8px;
+  border-bottom: 1px solid #393f4f;
+  padding-bottom: 6px;
+}
+
+.mastodon-tooltip-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mastodon-tooltip-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mastodon-tooltip-user-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mastodon-tooltip-user {
+  font-weight: bold;
+  margin-bottom: 2px;
+  word-wrap: break-word;
+}
+
+.mastodon-tooltip-time {
+  color: #9baec8;
+  font-size: 12px;
+}
+
+.mastodon-tooltip-stats {
+  color: #9baec8;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.mastodon-tooltip-content {
+  margin-bottom: 8px;
+  word-wrap: break-word;
+}
+
+.mastodon-tooltip-media {
+  color: #4caf50;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.mastodon-tooltip-media-preview {
+  margin: 8px 0;
+  max-height: 200px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.mastodon-tooltip-image {
+  max-width: 100%;
+  max-height: 150px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 4px 0;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.mastodon-tooltip-video {
+  max-width: 100%;
+  max-height: 150px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 4px 0;
+  border-radius: 4px;
+}
+
+.mastodon-tooltip-audio {
+  width: 100%;
+  height: 40px;
+  margin: 4px 0;
+}
+
+.mastodon-tooltip-media-more {
+  color: #9baec8;
+  font-size: 11px;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.mastodon-tooltip-url-preview {
+  margin: 8px 0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.mastodon-tooltip-url-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mastodon-tooltip-url-title {
+  color: #4caf50;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.mastodon-tooltip-url-card {
+  border: 1px solid #393f4f;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #1f232b;
+  transition: all 0.2s ease;
+}
+
+.mastodon-tooltip-url-card:hover {
+  background: #2a3040;
+  border-color: #4caf50;
+}
+
+.mastodon-tooltip-url-link-button {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background-color: #4caf50;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-tooltip-url-link-button:hover {
+  background-color: #45a049;
+}
+
+.mastodon-tooltip-url-image {
+  width: 100%;
+  max-height: 120px;
+  object-fit: cover;
+  display: block;
+}
+
+.mastodon-tooltip-url-content {
+  padding: 8px;
+}
+
+.mastodon-tooltip-url-card-title {
+  font-weight: bold;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.mastodon-tooltip-url-description {
+  color: #9baec8;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.mastodon-tooltip-url-domain {
+  color: #616b7d;
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.mastodon-tooltip-url-link {
+  color: #4caf50;
+  font-size: 10px;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.mastodon-tooltip-url-simple {
+  margin: 6px 0;
+  padding: 6px;
+  background: #1f232b;
+  border-radius: 4px;
+  border-left: 3px solid #4caf50;
+  transition: all 0.2s ease;
+}
+
+.mastodon-tooltip-url-simple:hover {
+  background: #2a3040;
+  transform: translateX(2px);
+}
+
+.mastodon-tooltip-url-simple-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-tooltip-url-simple-link:hover {
+  background-color: #2a3040;
+  border-radius: 4px;
+}
+
+.mastodon-tooltip-url-simple .mastodon-tooltip-url-title {
+  margin-bottom: 2px;
+}
+
+.mastodon-tooltip-url-link-only {
+  color: #9baec8;
+  font-size: 10px;
+  word-break: break-all;
+}
+
+.mastodon-tooltip-url-simple-button {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background-color: #4caf50;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-tooltip-url-simple-button:hover {
+  background-color: #45a049;
+}
+
+.mastodon-tooltip-interactions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.mastodon-tooltip-visibility {
+  color: #9baec8;
+}
+
+.mastodon-tooltip-counts {
+  color: #9baec8;
+}
+
+.mastodon-tooltip-id {
+  color: #9baec8;
+  font-size: 11px;
+  text-align: right;
+}
+
+.mastodon-post-media {
+  color: #4caf50;
+  font-size: 11px;
+  margin-top: 4px;
+  padding: 2px 0;
+  font-weight: bold;
+}
+
+.mastodon-post-meta-large {
+  color: #9baec8;
+  font-size: 12px;
+  font-weight: bold;
+  margin: 2px 0;
+  padding: 2px 0;
+  border-bottom: 1px solid #393f4f;
+}
+
+.mastodon-post-item {
+  margin: 4px 0;
+  padding: 0;
+  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border-radius: 4px;
+  background: var(--simple-background-color, #fff);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.mastodon-post-item:hover {
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
+  transform: none;
+  box-shadow: none;
+  border-color: var(--highlight-text-color, #6364ff);
+}
+
+.mastodon-post-header {
+  margin-bottom: 0;
+  padding: 8px 12px 6px 12px;
+  background: rgba(99, 100, 255, 0.05);
+  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+}
+
+.mastodon-post-user-info {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary-text-color, #0e1419);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mastodon-post-user-info strong {
+  color: var(--highlight-text-color, #6364ff);
+}
+
+.mastodon-post-meta-large {
+  color: var(--secondary-text-color, #606984);
+  font-size: 10px;
+  font-weight: 400;
+  margin: 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  background: rgba(99, 100, 255, 0.03);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mastodon-post-content {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--primary-text-color, #0e1419);
+  background: transparent;
+}
+
+.mastodon-post-media {
+  color: var(--secondary-text-color, #606984);
+  font-size: 10px;
+  margin: 0;
+  padding: 6px 12px 8px 12px;
+  font-weight: 500;
+  background: rgba(99, 100, 255, 0.03);
+  border-top: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mastodon-post-media::before {
+  content: "📎";
+  font-size: 12px;
+}
+
+.mastodon-count {
+  padding: 6px 10px;
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
+  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--highlight-text-color, #6364ff);
+  text-align: center;
+}
+
+/* アニメーション効果 */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mastodon-post-item {
+  animation: slideInUp 0.2s ease-out;
+}
+
+.mastodon-post-item:nth-child(odd) {
+  animation-delay: 0.05s;
+}
+
+.mastodon-post-item:nth-child(even) {
+  animation-delay: 0.1s;
+}
+
+/* ホバー時のエフェクト */
+.mastodon-post-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--highlight-text-color, #6364ff);
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
+  transform-origin: left;
+}
+
+.mastodon-post-item {
+  position: relative;
+}
+
+.mastodon-post-item:hover::before {
+  transform: scaleX(1);
 }
