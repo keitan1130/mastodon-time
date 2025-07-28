@@ -448,7 +448,7 @@ function displayPosts(posts) {
     const h = `@${post.account.username}`;
     const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
 
-    return `<div class="mastodon-post-item" data-url="${post.url}">
+    return `<div class="mastodon-post-item" data-url="${post.url}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
       <div class="mastodon-post-header"><strong>${escapeHtml(user)}</strong> ${escapeHtml(h)}</div>
       <div class="mastodon-post-meta">${t} ID:${post.id}</div>
       <div class="mastodon-post-content">${escapeHtml(txt)}</div>
@@ -457,6 +457,21 @@ function displayPosts(posts) {
 
   document.querySelectorAll('.mastodon-post-item').forEach(el => {
     el.addEventListener('click', () => window.open(el.dataset.url, '_blank'));
+
+    // ホバープレビュー機能を追加
+    let hoverTimeout;
+    let tooltip;
+
+    el.addEventListener('mouseenter', (e) => {
+      hoverTimeout = setTimeout(() => {
+        showPostPreview(e.target, JSON.parse(e.target.dataset.postData));
+      }, 500); // 500ms後にプレビュー表示
+    });
+
+    el.addEventListener('mouseleave', () => {
+      clearTimeout(hoverTimeout);
+      hidePostPreview();
+    });
   });
 }
 
@@ -474,6 +489,234 @@ function escapeHtml(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
+}
+
+function showPostPreview(element, post) {
+  // 既存のツールチップを削除
+  hidePostPreview();
+
+  const tooltip = document.createElement('div');
+  tooltip.id = 'mastodon-post-tooltip';
+  tooltip.className = 'mastodon-post-tooltip';
+
+  const t = new Date(post.created_at).toLocaleString('ja-JP');
+  const user = post.account.display_name || post.account.username;
+  const username = `@${post.account.username}`;
+  const followers = post.account.followers_count;
+  const following = post.account.following_count;
+  const statusesCount = post.account.statuses_count;
+  const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
+  const reblogs = post.reblogs_count;
+  const favourites = post.favourites_count;
+  const replies = post.replies_count;
+
+  // メディア添付の情報とプレビュー
+  let mediaInfo = '';
+  if (post.media_attachments && post.media_attachments.length > 0) {
+    const mediaTypes = post.media_attachments.map(m => m.type).join(', ');
+    mediaInfo = `<div class="mastodon-tooltip-media">📎 添付: ${mediaTypes} (${post.media_attachments.length}件)</div>`;
+
+    // メディアプレビューを生成
+    const mediaPreview = post.media_attachments.slice(0, 3).map(media => {
+      if (media.type === 'image') {
+        return `<img src="${media.preview_url || media.url}" alt="画像" class="mastodon-tooltip-image" loading="lazy">`;
+      } else if (media.type === 'video' || media.type === 'gifv') {
+        return `<video src="${media.url}" class="mastodon-tooltip-video" controls muted preload="metadata" poster="${media.preview_url}">
+                  <p>動画を再生できません</p>
+                </video>`;
+      } else if (media.type === 'audio') {
+        return `<audio src="${media.url}" class="mastodon-tooltip-audio" controls preload="metadata">
+                  <p>音声を再生できません</p>
+                </audio>`;
+      }
+      return '';
+    }).filter(Boolean).join('');
+
+    if (mediaPreview) {
+      mediaInfo += `<div class="mastodon-tooltip-media-preview">${mediaPreview}</div>`;
+    }
+
+    if (post.media_attachments.length > 3) {
+      mediaInfo += `<div class="mastodon-tooltip-media-more">他 ${post.media_attachments.length - 3} 件</div>`;
+    }
+  }
+
+  // 投稿の詳細情報
+  let visibility = '';
+  switch(post.visibility) {
+    case 'public': visibility = '🌐 公開'; break;
+    case 'unlisted': visibility = '🔓 未収載'; break;
+    case 'private': visibility = '🔒 フォロワー限定'; break;
+    case 'direct': visibility = '✉️ ダイレクト'; break;
+    default: visibility = post.visibility;
+  }
+
+  tooltip.innerHTML = `
+    <div class="mastodon-tooltip-header">
+      <div class="mastodon-tooltip-user">
+        <strong>${escapeHtml(user)}</strong> ${escapeHtml(username)}
+      </div>
+      <div class="mastodon-tooltip-time">${t}</div>
+    </div>
+    <div class="mastodon-tooltip-stats">
+      フォロワー: ${followers} | フォロー中: ${following} | 投稿: ${statusesCount}
+    </div>
+    <div class="mastodon-tooltip-content">
+      ${escapeHtml(txt)}
+    </div>
+    ${mediaInfo}
+    <div class="mastodon-tooltip-interactions">
+      <span class="mastodon-tooltip-visibility">${visibility}</span>
+      <span class="mastodon-tooltip-counts">
+        💬 ${replies} | 🔄 ${reblogs} | ⭐ ${favourites}
+      </span>
+    </div>
+    <div class="mastodon-tooltip-id">ID: ${post.id}</div>
+  `;
+
+  // ツールチップのスタイルを設定
+  const hasMedia = post.media_attachments && post.media_attachments.length > 0;
+  const maxWidth = hasMedia ? '500px' : '400px';
+
+  tooltip.style.cssText = `
+    position: fixed;
+    background: #282c37;
+    color: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    max-width: ${maxWidth};
+    font-size: 13px;
+    line-height: 1.4;
+    border: 1px solid #393f4f;
+    pointer-events: none;
+  `;
+
+  // ツールチップ内のスタイル
+  const style = document.createElement('style');
+  style.textContent = `
+    .mastodon-tooltip-header {
+      margin-bottom: 8px;
+      border-bottom: 1px solid #393f4f;
+      padding-bottom: 6px;
+    }
+    .mastodon-tooltip-user {
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .mastodon-tooltip-time {
+      color: #9baec8;
+      font-size: 12px;
+    }
+    .mastodon-tooltip-stats {
+      color: #9baec8;
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+    .mastodon-tooltip-content {
+      margin-bottom: 8px;
+      word-wrap: break-word;
+    }
+    .mastodon-tooltip-media {
+      color: #4caf50;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .mastodon-tooltip-media-preview {
+      margin: 8px 0;
+      max-height: 200px;
+      overflow: hidden;
+      border-radius: 4px;
+    }
+    .mastodon-tooltip-image {
+      max-width: 100%;
+      max-height: 150px;
+      width: auto;
+      height: auto;
+      display: block;
+      margin: 4px 0;
+      border-radius: 4px;
+      object-fit: cover;
+    }
+    .mastodon-tooltip-video {
+      max-width: 100%;
+      max-height: 150px;
+      width: auto;
+      height: auto;
+      display: block;
+      margin: 4px 0;
+      border-radius: 4px;
+    }
+    .mastodon-tooltip-audio {
+      width: 100%;
+      height: 40px;
+      margin: 4px 0;
+    }
+    .mastodon-tooltip-media-more {
+      color: #9baec8;
+      font-size: 11px;
+      font-style: italic;
+      margin-top: 4px;
+    }
+    .mastodon-tooltip-interactions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .mastodon-tooltip-visibility {
+      color: #9baec8;
+    }
+    .mastodon-tooltip-counts {
+      color: #9baec8;
+    }
+    .mastodon-tooltip-id {
+      color: #9baec8;
+      font-size: 11px;
+      text-align: right;
+    }
+  `;
+
+  if (!document.getElementById('mastodon-tooltip-styles')) {
+    style.id = 'mastodon-tooltip-styles';
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(tooltip);
+
+  // ツールチップの位置を調整
+  const rect = element.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  let left = rect.left + rect.width + 10;
+  let top = rect.top;
+
+  // 画面の右端を超える場合は左側に表示
+  if (left + tooltipRect.width > window.innerWidth) {
+    left = rect.left - tooltipRect.width - 10;
+  }
+
+  // 画面の下端を超える場合は上に調整
+  if (top + tooltipRect.height > window.innerHeight) {
+    top = window.innerHeight - tooltipRect.height - 10;
+  }
+
+  // 画面の上端を超える場合は下に調整
+  if (top < 10) {
+    top = 10;
+  }
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function hidePostPreview() {
+  const tooltip = document.getElementById('mastodon-post-tooltip');
+  if (tooltip) {
+    tooltip.remove();
+  }
 }
 
 // ページ読み込み完了後に実行
