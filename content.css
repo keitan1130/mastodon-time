@@ -168,11 +168,11 @@
 }
 
 .mastodon-result {
-  max-height: 600px;
+  max-height: 500px;
   overflow-y: auto;
   border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--simple-background-color, #fff) 0%, rgba(99, 100, 255, 0.02) 100%);
+  border-radius: 6px;
+  background: var(--simple-background-color, #fff);
   padding: 8px;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -183,17 +183,17 @@
 }
 
 .mastodon-result::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
 }
 
 .mastodon-result::-webkit-scrollbar-thumb {
-  background: #ffffff;
+  background: var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
 }
 
 .mastodon-result::-webkit-scrollbar-thumb:hover {
-  background: #e0e0e0;
+  background: var(--secondary-text-color, #606984);
 }
 
 .mastodon-loading {
@@ -316,36 +316,36 @@
 
   /* ダークモード時の投稿アイテムスタイル */
   .mastodon-post-item {
-    background: linear-gradient(135deg, #282c37 0%, #313543 100%);
-    border-color: #393f4f;
+    background: var(--simple-background-color, #191b22);
+    border-color: var(--ui-base-lighter-color, #393f4f);
   }
 
   .mastodon-post-item:hover {
-    background: linear-gradient(135deg, #393f4f 0%, #434855 100%);
-    border-color: #4caf50;
+    background: var(--ui-highlight-color, rgba(140, 141, 255, 0.1));
+    border-color: var(--highlight-text-color, #8c8dff);
   }
 
   .mastodon-post-header {
-    background: rgba(76, 175, 80, 0.15);
-    border-bottom-color: rgba(76, 175, 80, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom-color: var(--ui-base-lighter-color, #393f4f);
   }
 
   .mastodon-post-meta-large {
     background: rgba(0, 0, 0, 0.2);
-    border-bottom-color: rgba(57, 63, 79, 0.7);
+    border-bottom-color: var(--ui-base-lighter-color, #393f4f);
   }
 
   .mastodon-post-content {
-    background: rgba(255, 255, 255, 0.03);
+    background: transparent;
   }
 
   .mastodon-post-media {
-    background: rgba(76, 175, 80, 0.08);
-    border-top-color: rgba(76, 175, 80, 0.2);
+    background: rgba(255, 255, 255, 0.03);
+    border-top-color: var(--ui-base-lighter-color, #393f4f);
   }
 
   .mastodon-result {
-    background: linear-gradient(135deg, #191b22 0%, rgba(140, 141, 255, 0.05) 100%);
+    background: var(--simple-background-color, #191b22);
   }
 }
 
@@ -369,6 +369,16 @@
   flex: 1;
   min-width: 0;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mastodon-post-time-inline {
+  color: var(--darker-text-color, #606984);
+  font-size: 12px;
+  font-weight: normal;
+  white-space: nowrap;
 }
 
 .mastodon-tooltip-header {
@@ -468,6 +478,12 @@
 .mastodon-tooltip-url-preview {
   margin: 8px 0;
   border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.mastodon-tooltip-url-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .mastodon-tooltip-url-title {
@@ -481,6 +497,12 @@
   border-radius: 4px;
   overflow: hidden;
   background: #1f232b;
+  transition: all 0.2s ease;
+}
+
+.mastodon-tooltip-url-card:hover {
+  background: #2a3040;
+  border-color: #4caf50;
 }
 
 .mastodon-tooltip-url-link-button {
@@ -545,6 +567,12 @@
   background: #1f232b;
   border-radius: 4px;
   border-left: 3px solid #4caf50;
+  transition: all 0.2s ease;
+}
+
+.mastodon-tooltip-url-simple:hover {
+  background: #2a3040;
+  transform: translateX(2px);
 }
 
 .mastodon-tooltip-url-simple-link {
@@ -628,9 +656,9 @@
 .mastodon-post-item {
   margin: 4px 0;
   padding: 0;
-  border: 1px solid #606984;
+  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
-  background: #17191f;
+  background: var(--simple-background-color, #fff);
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: none;
@@ -638,40 +666,40 @@
 }
 
 .mastodon-post-item:hover {
-  background: #1f232b;
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
   transform: none;
   box-shadow: none;
-  border-color: #9baec8;
+  border-color: var(--highlight-text-color, #6364ff);
 }
 
 .mastodon-post-header {
   margin-bottom: 0;
   padding: 8px 12px 6px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(96, 105, 132, 0.2);
+  background: rgba(99, 100, 255, 0.05);
+  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
 }
 
 .mastodon-post-user-info {
   font-size: 12px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--primary-text-color, #0e1419);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .mastodon-post-user-info strong {
-  color: #b8c7d1;
+  color: var(--highlight-text-color, #6364ff);
 }
 
 .mastodon-post-meta-large {
-  color: #9baec8;
+  color: var(--secondary-text-color, #606984);
   font-size: 10px;
   font-weight: 400;
   margin: 0;
   padding: 6px 12px;
-  border-bottom: 1px solid rgba(96, 105, 132, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  background: rgba(99, 100, 255, 0.03);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -682,18 +710,18 @@
   line-height: 1.4;
   margin: 0;
   padding: 8px 12px;
-  color: #ffffff;
+  color: var(--primary-text-color, #0e1419);
   background: transparent;
 }
 
 .mastodon-post-media {
-  color: #b8c7d1;
+  color: var(--secondary-text-color, #606984);
   font-size: 10px;
   margin: 0;
   padding: 6px 12px 8px 12px;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.03);
-  border-top: 1px solid rgba(96, 105, 132, 0.1);
+  background: rgba(99, 100, 255, 0.03);
+  border-top: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -705,17 +733,15 @@
 }
 
 .mastodon-count {
-  padding: 8px 12px;
-  background: #606984;
-  border: none;
+  padding: 6px 10px;
+  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
+  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
   margin-bottom: 8px;
   font-weight: 600;
   font-size: 12px;
-  color: #fff;
+  color: var(--highlight-text-color, #6364ff);
   text-align: center;
-  box-shadow: none;
-  text-shadow: none;
 }
 
 /* アニメーション効果 */
@@ -750,7 +776,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: #9baec8;
+  background: var(--highlight-text-color, #6364ff);
   transform: scaleX(0);
   transition: transform 0.2s ease;
   transform-origin: left;

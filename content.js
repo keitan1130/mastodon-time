@@ -458,10 +458,10 @@ function displayPosts(posts) {
     return `<div class="mastodon-post-item" data-url="${post.url}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
       <div class="mastodon-post-header">
         <div class="mastodon-post-user-info">
-          <strong>${escapeHtml(user)}</strong> ${escapeHtml(h)}
+          <strong>${escapeHtml(user)}</strong>
+          <span class="mastodon-post-time-inline">${t}</span>
         </div>
       </div>
-      <div class="mastodon-post-meta-large">${t} | ID: ${post.id}</div>
       <div class="mastodon-post-content">${escapeHtml(txt)}</div>
       ${mediaInfo}
     </div>`;
@@ -593,7 +593,7 @@ function showPostPreview(element, post) {
     }
 
     urlPreview = `
-      <div class="mastodon-tooltip-url-preview">
+      <div class="mastodon-tooltip-url-preview" data-url="${card.url}" style="cursor: pointer;">
         <div class="mastodon-tooltip-url-title">🔗 リンクプレビュー</div>
         <div class="mastodon-tooltip-url-card">
           ${card.image ? `<img src="${encodeURI(card.image)}" alt="プレビュー画像" class="mastodon-tooltip-url-image" loading="lazy" onerror="this.style.display='none'">` : ''}
@@ -601,9 +601,6 @@ function showPostPreview(element, post) {
             <div class="mastodon-tooltip-url-card-title">${escapeHtml(card.title || 'タイトルなし')}</div>
             ${card.description ? `<div class="mastodon-tooltip-url-description">${escapeHtml(card.description.substring(0, 120))}${card.description.length > 120 ? '...' : ''}</div>` : ''}
             <div class="mastodon-tooltip-url-domain">${escapeHtml(domain)}</div>
-            <a href="${card.url}" target="_blank" rel="noopener noreferrer" class="mastodon-tooltip-url-link-button">
-              → サイトを開く
-            </a>
           </div>
         </div>
       </div>
@@ -611,12 +608,9 @@ function showPostPreview(element, post) {
   } else if (post.card && post.card.url) {
     // メディアがあってもURLカードがある場合は簡易表示
     urlPreview = `
-      <div class="mastodon-tooltip-url-simple">
+      <div class="mastodon-tooltip-url-simple" data-url="${post.card.url}" style="cursor: pointer;">
         <div class="mastodon-tooltip-url-title">🔗 ${escapeHtml(post.card.title || 'リンク')}</div>
         <div class="mastodon-tooltip-url-link-only">${escapeHtml(post.card.url.length > 60 ? post.card.url.substring(0, 57) + '...' : post.card.url)}</div>
-        <a href="${post.card.url}" target="_blank" rel="noopener noreferrer" class="mastodon-tooltip-url-simple-button">
-          → サイトを開く
-        </a>
       </div>
     `;
   }  // 投稿の詳細情報
@@ -637,7 +631,7 @@ function showPostPreview(element, post) {
           <div class="mastodon-tooltip-user">
             <strong>${escapeHtml(user)}</strong> ${escapeHtml(username)}
           </div>
-          <div class="mastodon-tooltip-time">${t}</div>
+          <div class="mastodon-tooltip-time">${t} | ID: ${post.id}</div>
         </div>
       </div>
     </div>
@@ -655,7 +649,6 @@ function showPostPreview(element, post) {
         💬 ${replies} | 🔄 ${reblogs} | ⭐ ${favourites}
       </span>
     </div>
-    <div class="mastodon-tooltip-id">ID: ${post.id}</div>
   `;
 
   // ツールチップのスタイルを設定
@@ -692,6 +685,29 @@ function showPostPreview(element, post) {
       hidePostPreview();
     }, 100);
   });
+
+  // リンクプレビューのクリックイベントを追加
+  const urlPreviewElement = tooltip.querySelector('.mastodon-tooltip-url-preview');
+  if (urlPreviewElement) {
+    urlPreviewElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url = urlPreviewElement.getAttribute('data-url');
+      if (url) {
+        window.open(url, '_blank');
+      }
+    });
+  }
+
+  const urlSimpleElement = tooltip.querySelector('.mastodon-tooltip-url-simple');
+  if (urlSimpleElement) {
+    urlSimpleElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url = urlSimpleElement.getAttribute('data-url');
+      if (url) {
+        window.open(url, '_blank');
+      }
+    });
+  }
 
   // ツールチップの位置を調整
   const rect = element.getBoundingClientRect();
