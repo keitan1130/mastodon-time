@@ -448,10 +448,22 @@ function displayPosts(posts) {
     const h = `@${post.account.username}`;
     const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
 
+    // メディア添付の情報
+    let mediaInfo = '';
+    if (post.media_attachments && post.media_attachments.length > 0) {
+      const mediaTypes = post.media_attachments.map(m => m.type).join(', ');
+      mediaInfo = `<div class="mastodon-post-media">📎 添付: ${mediaTypes} (${post.media_attachments.length}件)</div>`;
+    }
+
     return `<div class="mastodon-post-item" data-url="${post.url}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
-      <div class="mastodon-post-header"><strong>${escapeHtml(user)}</strong> ${escapeHtml(h)}</div>
-      <div class="mastodon-post-meta">${t} ID:${post.id}</div>
+      <div class="mastodon-post-header">
+        <div class="mastodon-post-user-info">
+          <strong>${escapeHtml(user)}</strong> ${escapeHtml(h)}
+        </div>
+      </div>
+      <div class="mastodon-post-meta-large">${t} | ID: ${post.id}</div>
       <div class="mastodon-post-content">${escapeHtml(txt)}</div>
+      ${mediaInfo}
     </div>`;
   }).join('');
 
@@ -460,7 +472,7 @@ function displayPosts(posts) {
 
     // ホバープレビュー機能を追加
     let hoverTimeout;
-    let tooltip;
+    let isHoveringTooltip = false;
 
     el.addEventListener('mouseenter', (e) => {
       hoverTimeout = setTimeout(() => {
@@ -470,7 +482,30 @@ function displayPosts(posts) {
 
     el.addEventListener('mouseleave', () => {
       clearTimeout(hoverTimeout);
-      hidePostPreview();
+      // ツールチップにホバーしていない場合のみ非表示
+      setTimeout(() => {
+        if (!isHoveringTooltip) {
+          hidePostPreview();
+        }
+      }, 100);
+    });
+
+    // ツールチップのホバー状態を管理
+    document.addEventListener('mouseover', (e) => {
+      if (e.target.closest('#mastodon-post-tooltip')) {
+        isHoveringTooltip = true;
+      }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      if (e.target.closest('#mastodon-post-tooltip') && !e.relatedTarget?.closest('#mastodon-post-tooltip')) {
+        isHoveringTooltip = false;
+        setTimeout(() => {
+          if (!isHoveringTooltip) {
+            hidePostPreview();
+          }
+        }, 100);
+      }
     });
   });
 }
@@ -494,6 +529,9 @@ function escapeHtml(s) {
 function showPostPreview(element, post) {
   // 既存のツールチップを削除
   hidePostPreview();
+
+  // デバッグ: cardの情報をコンソールに出力
+  console.log('Post card info:', post.card);
 
   const tooltip = document.createElement('div');
   tooltip.id = 'mastodon-post-tooltip';
@@ -541,7 +579,47 @@ function showPostPreview(element, post) {
     }
   }
 
-  // 投稿の詳細情報
+  // URLプレビューの情報
+  let urlPreview = '';
+  if (post.card && post.card.url && !post.media_attachments?.length) {
+    const card = post.card;
+
+    // URLの安全な処理
+    let domain = '';
+    try {
+      domain = new URL(card.url).hostname;
+    } catch (e) {
+      domain = card.provider_name || 'リンク先';
+    }
+
+    urlPreview = `
+      <div class="mastodon-tooltip-url-preview">
+        <div class="mastodon-tooltip-url-title">🔗 リンクプレビュー</div>
+        <div class="mastodon-tooltip-url-card">
+          ${card.image ? `<img src="${encodeURI(card.image)}" alt="プレビュー画像" class="mastodon-tooltip-url-image" loading="lazy" onerror="this.style.display='none'">` : ''}
+          <div class="mastodon-tooltip-url-content">
+            <div class="mastodon-tooltip-url-card-title">${escapeHtml(card.title || 'タイトルなし')}</div>
+            ${card.description ? `<div class="mastodon-tooltip-url-description">${escapeHtml(card.description.substring(0, 120))}${card.description.length > 120 ? '...' : ''}</div>` : ''}
+            <div class="mastodon-tooltip-url-domain">${escapeHtml(domain)}</div>
+            <a href="${card.url}" target="_blank" rel="noopener noreferrer" class="mastodon-tooltip-url-link-button">
+              → サイトを開く
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (post.card && post.card.url) {
+    // メディアがあってもURLカードがある場合は簡易表示
+    urlPreview = `
+      <div class="mastodon-tooltip-url-simple">
+        <div class="mastodon-tooltip-url-title">🔗 ${escapeHtml(post.card.title || 'リンク')}</div>
+        <div class="mastodon-tooltip-url-link-only">${escapeHtml(post.card.url.length > 60 ? post.card.url.substring(0, 57) + '...' : post.card.url)}</div>
+        <a href="${post.card.url}" target="_blank" rel="noopener noreferrer" class="mastodon-tooltip-url-simple-button">
+          → サイトを開く
+        </a>
+      </div>
+    `;
+  }  // 投稿の詳細情報
   let visibility = '';
   switch(post.visibility) {
     case 'public': visibility = '🌐 公開'; break;
@@ -553,10 +631,15 @@ function showPostPreview(element, post) {
 
   tooltip.innerHTML = `
     <div class="mastodon-tooltip-header">
-      <div class="mastodon-tooltip-user">
-        <strong>${escapeHtml(user)}</strong> ${escapeHtml(username)}
+      <div class="mastodon-tooltip-user-info">
+        <img src="${post.account.avatar}" alt="アバター" class="mastodon-tooltip-avatar" loading="lazy">
+        <div class="mastodon-tooltip-user-text">
+          <div class="mastodon-tooltip-user">
+            <strong>${escapeHtml(user)}</strong> ${escapeHtml(username)}
+          </div>
+          <div class="mastodon-tooltip-time">${t}</div>
+        </div>
       </div>
-      <div class="mastodon-tooltip-time">${t}</div>
     </div>
     <div class="mastodon-tooltip-stats">
       フォロワー: ${followers} | フォロー中: ${following} | 投稿: ${statusesCount}
@@ -565,6 +648,7 @@ function showPostPreview(element, post) {
       ${escapeHtml(txt)}
     </div>
     ${mediaInfo}
+    ${urlPreview}
     <div class="mastodon-tooltip-interactions">
       <span class="mastodon-tooltip-visibility">${visibility}</span>
       <span class="mastodon-tooltip-counts">
@@ -576,7 +660,8 @@ function showPostPreview(element, post) {
 
   // ツールチップのスタイルを設定
   const hasMedia = post.media_attachments && post.media_attachments.length > 0;
-  const maxWidth = hasMedia ? '500px' : '400px';
+  const hasUrlPreview = post.card && post.card.url && !post.media_attachments?.length;
+  const maxWidth = (hasMedia || hasUrlPreview) ? '500px' : '400px';
 
   tooltip.style.cssText = `
     position: fixed;
@@ -590,20 +675,55 @@ function showPostPreview(element, post) {
     font-size: 13px;
     line-height: 1.4;
     border: 1px solid #393f4f;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: default;
   `;
 
   // ツールチップ内のスタイル
   const style = document.createElement('style');
   style.textContent = `
+    .mastodon-post-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .mastodon-post-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .mastodon-post-user-info {
+      flex: 1;
+      min-width: 0;
+    }
     .mastodon-tooltip-header {
       margin-bottom: 8px;
       border-bottom: 1px solid #393f4f;
       padding-bottom: 6px;
     }
+    .mastodon-tooltip-user-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mastodon-tooltip-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .mastodon-tooltip-user-text {
+      flex: 1;
+      min-width: 0;
+    }
     .mastodon-tooltip-user {
       font-weight: bold;
       margin-bottom: 2px;
+      word-wrap: break-word;
     }
     .mastodon-tooltip-time {
       color: #9baec8;
@@ -659,6 +779,94 @@ function showPostPreview(element, post) {
       font-style: italic;
       margin-top: 4px;
     }
+    .mastodon-tooltip-url-preview {
+      margin: 8px 0;
+      border-radius: 4px;
+    }
+    .mastodon-tooltip-url-title {
+      color: #4caf50;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .mastodon-tooltip-url-card {
+      border: 1px solid #393f4f;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #1f232b;
+    }
+    .mastodon-tooltip-url-link-button {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 12px;
+      background-color: #4caf50;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+    }
+    .mastodon-tooltip-url-link-button:hover {
+      background-color: #45a049;
+    }
+    .mastodon-tooltip-url-image {
+      width: 100%;
+      max-height: 120px;
+      object-fit: cover;
+      display: block;
+    }
+    .mastodon-tooltip-url-content {
+      padding: 8px;
+    }
+    .mastodon-tooltip-url-card-title {
+      font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .mastodon-tooltip-url-description {
+      color: #9baec8;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    .mastodon-tooltip-url-domain {
+      color: #616b7d;
+      font-size: 11px;
+      text-transform: lowercase;
+    }
+    .mastodon-tooltip-url-link {
+      color: #4caf50;
+      font-size: 10px;
+      margin-top: 4px;
+      word-break: break-all;
+    }
+    .mastodon-tooltip-url-simple {
+      margin: 6px 0;
+      padding: 6px;
+      background: #1f232b;
+      border-radius: 4px;
+      border-left: 3px solid #4caf50;
+    }
+    .mastodon-tooltip-url-simple-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: background-color 0.2s ease;
+    }
+    .mastodon-tooltip-url-simple-link:hover {
+      background-color: #2a3040;
+      border-radius: 4px;
+    }
+    .mastodon-tooltip-url-simple .mastodon-tooltip-url-title {
+      margin-bottom: 2px;
+    }
+    .mastodon-tooltip-url-link-only {
+      color: #9baec8;
+      font-size: 10px;
+      word-break: break-all;
+    }
     .mastodon-tooltip-interactions {
       display: flex;
       justify-content: space-between;
@@ -677,6 +885,45 @@ function showPostPreview(element, post) {
       font-size: 11px;
       text-align: right;
     }
+    .mastodon-post-media {
+      color: #4caf50;
+      font-size: 11px;
+      margin-top: 4px;
+      padding: 2px 0;
+      font-weight: bold;
+    }
+    .mastodon-post-meta-large {
+      color: #9baec8;
+      font-size: 12px;
+      font-weight: bold;
+      margin: 2px 0;
+      padding: 2px 0;
+      border-bottom: 1px solid #393f4f;
+    }
+    .mastodon-post-item {
+      margin: 4px 0;
+      padding: 6px;
+      border: 1px solid #393f4f;
+      border-radius: 4px;
+      background: #1f232b;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .mastodon-post-item:hover {
+      background: #2a3040;
+    }
+    .mastodon-post-header {
+      margin-bottom: 2px;
+    }
+    .mastodon-post-user-info {
+      font-size: 13px;
+    }
+    .mastodon-post-content {
+      font-size: 12px;
+      line-height: 1.3;
+      margin: 2px 0;
+      color: #d9e1e8;
+    }
   `;
 
   if (!document.getElementById('mastodon-tooltip-styles')) {
@@ -685,6 +932,18 @@ function showPostPreview(element, post) {
   }
 
   document.body.appendChild(tooltip);
+
+  // ツールチップ自体にマウスイベントを追加
+  tooltip.addEventListener('mouseenter', () => {
+    // ツールチップにマウスが入った場合、非表示をキャンセル
+  });
+
+  tooltip.addEventListener('mouseleave', () => {
+    // ツールチップからマウスが離れた場合、少し遅延して非表示
+    setTimeout(() => {
+      hidePostPreview();
+    }, 100);
+  });
 
   // ツールチップの位置を調整
   const rect = element.getBoundingClientRect();
