@@ -629,7 +629,7 @@ function showPostPreview(element, post) {
         <img src="${post.account.avatar}" alt="アバター" class="mastodon-tooltip-avatar" loading="lazy">
         <div class="mastodon-tooltip-user-text">
           <div class="mastodon-tooltip-user">
-            <strong class="mastodon-tooltip-username" style="cursor: pointer; text-decoration: underline;" data-profile-url="${post.account.url}">${escapeHtml(user)}</strong> ${escapeHtml(username)}
+            <strong class="mastodon-tooltip-username" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(user)}</strong> ${escapeHtml(username)}
           </div>
           <div class="mastodon-tooltip-time">${t} | ID: ${post.id}</div>
         </div>
@@ -643,7 +643,7 @@ function showPostPreview(element, post) {
     <div class="mastodon-tooltip-interactions">
       <span class="mastodon-tooltip-visibility">${visibility}</span>
       <span class="mastodon-tooltip-post-count">投稿数: ${statusesCount}</span>
-      <button class="mastodon-tooltip-go-post" style="cursor: pointer; background: none; border: none; color: #fff; font-size: 13px; text-decoration: underline; padding: 0; margin-left: 5px;" data-post-url="${post.url}">移動</button>
+      <button class="mastodon-tooltip-go-post" style="cursor: pointer; background: none; border: none; color: #fff; font-size: 13px; text-decoration: underline; padding: 0; margin-left: 5px; transition: color 0.2s ease;" data-post-url="${post.url}">移動</button>
       <span class="mastodon-tooltip-counts">
         💬 ${replies} | 🔄 ${reblogs} | ⭐ ${favourites}
       </span>
@@ -718,6 +718,15 @@ function showPostPreview(element, post) {
         window.open(profileUrl, '_blank');
       }
     });
+
+    // ホバーエフェクトを追加
+    usernameElement.addEventListener('mouseenter', () => {
+      usernameElement.style.color = '#6364ff';
+    });
+
+    usernameElement.addEventListener('mouseleave', () => {
+      usernameElement.style.color = '#fff';
+    });
   }
 
   // 投稿移動ボタンのクリックイベントを追加
@@ -729,6 +738,15 @@ function showPostPreview(element, post) {
       if (postUrl) {
         window.open(postUrl, '_blank');
       }
+    });
+
+    // ホバーエフェクトを追加
+    goPostButton.addEventListener('mouseenter', () => {
+      goPostButton.style.color = '#6364ff';
+    });
+
+    goPostButton.addEventListener('mouseleave', () => {
+      goPostButton.style.color = '#fff';
     });
   }
 

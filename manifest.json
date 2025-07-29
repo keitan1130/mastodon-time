@@ -1,15 +1,13 @@
 {
   "name": "Mastodon Post Viewer",
   "description": "Mastodon投稿検索",
-  "version": "1.3",
+  "version": "1.31",
   "manifest_version": 3,
   "action": {
     "default_popup": "time.html",
     "default_icon": "mastodon-icon.png"
   },
   "permissions": [
-    "activeTab",
-    "tabs",
     "webRequest",
     "cookies",
     "storage"
