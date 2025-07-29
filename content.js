@@ -629,7 +629,7 @@ function showPostPreview(element, post) {
         <img src="${post.account.avatar}" alt="アバター" class="mastodon-tooltip-avatar" loading="lazy">
         <div class="mastodon-tooltip-user-text">
           <div class="mastodon-tooltip-user">
-            <strong>${escapeHtml(user)}</strong> ${escapeHtml(username)}
+            <strong class="mastodon-tooltip-username" style="cursor: pointer; text-decoration: underline;" data-profile-url="${post.account.url}">${escapeHtml(user)}</strong> ${escapeHtml(username)}
           </div>
           <div class="mastodon-tooltip-time">${t} | ID: ${post.id}</div>
         </div>
@@ -643,6 +643,7 @@ function showPostPreview(element, post) {
     <div class="mastodon-tooltip-interactions">
       <span class="mastodon-tooltip-visibility">${visibility}</span>
       <span class="mastodon-tooltip-post-count">投稿数: ${statusesCount}</span>
+      <button class="mastodon-tooltip-go-post" style="cursor: pointer; background: none; border: none; color: #fff; font-size: 13px; text-decoration: underline; padding: 0; margin-left: 5px;" data-post-url="${post.url}">移動</button>
       <span class="mastodon-tooltip-counts">
         💬 ${replies} | 🔄 ${reblogs} | ⭐ ${favourites}
       </span>
@@ -707,6 +708,30 @@ function showPostPreview(element, post) {
     });
   }
 
+  // ユーザー名のクリックイベントを追加
+  const usernameElement = tooltip.querySelector('.mastodon-tooltip-username');
+  if (usernameElement) {
+    usernameElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const profileUrl = usernameElement.getAttribute('data-profile-url');
+      if (profileUrl) {
+        window.open(profileUrl, '_blank');
+      }
+    });
+  }
+
+  // 投稿移動ボタンのクリックイベントを追加
+  const goPostButton = tooltip.querySelector('.mastodon-tooltip-go-post');
+  if (goPostButton) {
+    goPostButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const postUrl = goPostButton.getAttribute('data-post-url');
+      if (postUrl) {
+        window.open(postUrl, '_blank');
+      }
+    });
+  }
+
   // ツールチップの位置を調整
   const rect = element.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
@@ -714,25 +739,62 @@ function showPostPreview(element, post) {
   let left = rect.left + rect.width + 10;
   let top = rect.top;
 
-  // 画面の右端を超える場合は左側に表示
-  if (left + tooltipRect.width > window.innerWidth) {
-    left = rect.left - tooltipRect.width - 10;
-  }
+  // 画面の右端を超える場合は、まず画面内に収まるように右端に合わせる
+  if (left + tooltipRect.width > window.innerWidth - 10) {
+    left = window.innerWidth - tooltipRect.width - 10;
 
-  // 画面の下端を超える場合は要素の上に表示
-  if (top + tooltipRect.height > window.innerHeight) {
-    top = rect.top - tooltipRect.height - 10;
+    // それでも要素と重なる場合のみ左側に表示
+    if (left < rect.right) {
+      left = rect.left - tooltipRect.width - 10;
 
-    // 上に表示しても画面上端を超える場合は、画面内に収まる位置に調整
-    if (top < 10) {
-      top = window.innerHeight - tooltipRect.height - 10;
+      // 左端を超える場合は右側優先で表示（右側にはみ出すことを許可）
+      if (left < 10) {
+        left = rect.left + rect.width + 10; // 右側に戻す
+      } else {
+        // 左側表示時の下端調整
+        if (top + tooltipRect.height > window.innerHeight - 10) {
+          // ホバーしている要素の上に配置を試行
+          top = rect.top - tooltipRect.height - 10;
+
+          // 上に表示しても画面上端を超える場合は、ホバー要素の中央に合わせて画面内に収める
+          if (top < 10) {
+            // ホバーしている要素の中央を基準に調整
+            const elementCenter = rect.top + rect.height / 2;
+            const tooltipHalfHeight = tooltipRect.height / 2;
+
+            // 要素の中央にツールチップの中央を合わせる
+            top = elementCenter - tooltipHalfHeight;
+
+            // 画面の境界内に収める
+            top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
+          }
+        }
+      }
     }
   }
 
-  // 左端を超える場合の調整（左側表示時）
-  if (left < 10) {
-    left = 10;
+  // 右側表示時の画面の下端を超える場合の調整
+  if (left >= rect.left + rect.width && top + tooltipRect.height > window.innerHeight - 10) {
+    // ホバーしている要素の上に配置を試行
+    top = rect.top - tooltipRect.height - 10;
+
+    // 上に表示しても画面上端を超える場合は、ホバー要素の中央に合わせて画面内に収める
+    if (top < 10) {
+      // ホバーしている要素の中央を基準に調整
+      const elementCenter = rect.top + rect.height / 2;
+      const tooltipHalfHeight = tooltipRect.height / 2;
+
+      // 要素の中央にツールチップの中央を合わせる
+      top = elementCenter - tooltipHalfHeight;
+
+      // 画面の境界内に収める
+      top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
+    }
   }
+
+  // 最終的な境界チェック
+  left = Math.max(10, Math.min(left, window.innerWidth - tooltipRect.width - 10));
+  top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
 
   tooltip.style.left = `${left}px`;
   tooltip.style.top = `${top}px`;
