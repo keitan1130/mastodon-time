@@ -37,7 +37,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 15px;
+  padding: 8px 12px;
   background: var(--background-color, #fff);
   border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px 4px 0 0;
@@ -68,17 +68,19 @@
 }
 
 .mastodon-viewer-content {
-  padding: 12px;
+  padding: 8px;
+  max-height: 700px;
+  overflow-y: auto;
 }
 
 .mastodon-input-type-selector {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .mastodon-input-type-selector label {
   display: block;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--primary-text-color, #0e1419);
   font-size: 14px;
 }
@@ -113,7 +115,7 @@
 }
 
 .mastodon-input-group {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .mastodon-input-group label {
@@ -127,7 +129,7 @@
 .mastodon-input-group input[type="text"],
 .mastodon-input-group input[type="number"] {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
   font-size: 14px;
@@ -146,7 +148,7 @@
 
 .mastodon-fetch-btn {
   width: 100%;
-  padding: 8px 14px;
+  padding: 6px 12px;
   background: var(--highlight-text-color, #6364ff);
   color: var(--button-text-color, #fff);
   border: none;
@@ -154,7 +156,7 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   transition: all 0.2s ease;
 }
 
@@ -168,31 +170,30 @@
 }
 
 .mastodon-result {
-  max-height: 500px;
-  overflow-y: auto;
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
-  border-radius: 6px;
-  background: var(--simple-background-color, #fff);
-  padding: 8px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  padding: 0;
 }
 
 /* スクロールバーのスタイリング */
-.mastodon-result::-webkit-scrollbar {
+.mastodon-result::-webkit-scrollbar,
+.mastodon-viewer-content::-webkit-scrollbar {
   width: 8px;
 }
 
-.mastodon-result::-webkit-scrollbar-track {
+.mastodon-result::-webkit-scrollbar-track,
+.mastodon-viewer-content::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
 }
 
-.mastodon-result::-webkit-scrollbar-thumb {
+.mastodon-result::-webkit-scrollbar-thumb,
+.mastodon-viewer-content::-webkit-scrollbar-thumb {
   background: var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
 }
 
-.mastodon-result::-webkit-scrollbar-thumb:hover {
+.mastodon-result::-webkit-scrollbar-thumb:hover,
+.mastodon-viewer-content::-webkit-scrollbar-thumb:hover {
   background: var(--secondary-text-color, #606984);
 }
 
@@ -225,11 +226,11 @@
 }
 
 .mastodon-count {
-  padding: 6px 10px;
+  padding: 4px 8px;
   background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
   border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
   border-radius: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 600;
   font-size: 12px;
   color: var(--highlight-text-color, #6364ff);
@@ -342,10 +343,6 @@
   .mastodon-post-media {
     background: rgba(255, 255, 255, 0.03);
     border-top-color: var(--ui-base-lighter-color, #393f4f);
-  }
-
-  .mastodon-result {
-    background: var(--simple-background-color, #191b22);
   }
 }
 
