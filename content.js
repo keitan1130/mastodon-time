@@ -635,9 +635,6 @@ function showPostPreview(element, post) {
         </div>
       </div>
     </div>
-    <div class="mastodon-tooltip-stats">
-      フォロワー: ${followers} | フォロー中: ${following} | 投稿: ${statusesCount}
-    </div>
     <div class="mastodon-tooltip-content">
       ${escapeHtml(txt)}
     </div>
@@ -645,6 +642,7 @@ function showPostPreview(element, post) {
     ${urlPreview}
     <div class="mastodon-tooltip-interactions">
       <span class="mastodon-tooltip-visibility">${visibility}</span>
+      <span class="mastodon-tooltip-post-count">投稿数: ${statusesCount}</span>
       <span class="mastodon-tooltip-counts">
         💬 ${replies} | 🔄 ${reblogs} | ⭐ ${favourites}
       </span>
