@@ -454,6 +454,12 @@ async function fetchUserPosts(username, timeFilter = null) {
         "Authorization": stored["authorization"]
       },
       credentials: "include"
+    }).catch(async () => {
+      // CORS エラーの場合は認証なしで試行
+      if (username.includes('@')) {
+        return await fetch(statusesUrl);
+      }
+      throw new Error('認証エラー');
     });
 
     if (!statusesRes.ok) {
