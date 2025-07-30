@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const t = new Date(post.created_at).toLocaleString('ja-JP');
       const user = post.account.display_name || post.account.username;
       const h = `@${post.account.username}`;
-      const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
+      const txt = stripHtmlTags(post.content) || 'テキストなし';
 
       // メディア添付の情報
       let mediaInfo = '';
@@ -529,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = post.account.display_name || post.account.username;
     const username = `@${post.account.username}`;
     const statusesCount = post.account.statuses_count;
-    const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
+    const txt = stripHtmlTags(post.content) || 'テキストなし';
     const reblogs = post.reblogs_count;
     const favourites = post.favourites_count;
     const replies = post.replies_count;

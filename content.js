@@ -512,7 +512,7 @@ function displayPosts(posts) {
     const t = new Date(post.created_at).toLocaleString('ja-JP');
     const user = post.account.display_name || post.account.username;
     const h = `@${post.account.username}`;
-    const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
+    const txt = stripHtmlTags(post.content) || 'テキストなし';
 
     // メディア添付の情報
     let mediaInfo = '';
@@ -609,7 +609,7 @@ function showPostPreview(element, post) {
   const followers = post.account.followers_count;
   const following = post.account.following_count;
   const statusesCount = post.account.statuses_count;
-  const txt = stripHtmlTags(post.content) || '<em>テキストなし</em>';
+  const txt = stripHtmlTags(post.content) || 'テキストなし';
   const reblogs = post.reblogs_count;
   const favourites = post.favourites_count;
   const replies = post.replies_count;
