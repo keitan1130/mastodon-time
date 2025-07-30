@@ -240,35 +240,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- Mastodon API 呼び出し ---
   async function fetchMastodonPost(id) {
-    const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
-    const stored = await getStorageAsync(keys);
     const instanceUrl = await getCurrentInstanceUrl();
-
-    // 認証情報がある場合は認証ありで試行
-    if (stored.session_id || stored.authorization) {
-      try {
-        const res = await fetch(`${instanceUrl}/api/v1/statuses/${id}`, {
-          headers: {
-            "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-            "X-Csrf-Token": stored["x_csrf_token"],
-            "Authorization": stored["authorization"]
-          },
-          credentials: "include"
-        });
-
-        if (res.ok) {
-          return res.json();
-        }
-      } catch (error) {
-        console.log('認証ありでの取得に失敗、認証なしで再試行:', error);
-      }
-    }
-
-    // 認証情報がないか、認証ありで失敗した場合は認証なしで試行
     const res = await fetch(`${instanceUrl}/api/v1/statuses/${id}`);
     if (!res.ok) throw new Error(`投稿取得エラー: ${res.status}`);
     return res.json();
-  }  // 認証情報取得
+  }
+
+  // 認証情報取得
   function getStorageAsync(keys) {
     return new Promise((resolve) => {
       chrome.storage.local.get(keys, resolve);
@@ -294,29 +272,14 @@ document.addEventListener('DOMContentLoaded', function() {
       url.searchParams.set('since_id', sinceId);
       url.searchParams.set('local', 'true'); // ローカルタイムラインのみ取得
 
-      let res;
-
-      // 認証情報がある場合は認証ありで試行
-      if (stored.session_id || stored.authorization) {
-        try {
-          res = await fetch(url, {
-            headers: {
-              "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-              "X-Csrf-Token": stored["x_csrf_token"],
-              "Authorization": stored["authorization"]
-            },
-            credentials: "include" // 忘れずに（Cookieを送る場合）
-          });
-
-          if (!res.ok) throw new Error('認証ありでの取得に失敗');
-        } catch (error) {
-          console.log('認証ありでの取得に失敗、認証なしで再試行:', error);
-          res = await fetch(url);
-        }
-      } else {
-        // 認証情報がない場合は認証なしで取得
-        res = await fetch(url);
-      }
+      const res = await fetch(url, {
+        headers: {
+          "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+          "X-Csrf-Token": stored["x_csrf_token"],
+          "Authorization": stored["authorization"]
+        },
+        credentials: "include" // 忘れずに（Cookieを送る場合）
+      });
 
       if (!res.ok) throw new Error('タイムライン取得エラー');
 
