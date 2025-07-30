@@ -1,14 +1,14 @@
 /* Mastodon Timeline Viewer Content Script Styles */
 
 .mastodon-viewer-container {
-  background: var(--background-color, #fff);
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  background: #1a1e27;
+  border: 1px solid #393f4f;
   border-radius: 4px;
   margin-bottom: 16px;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   box-sizing: border-box;
   max-width: 100%;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
 }
 
 .mastodon-viewer-container * {
@@ -19,7 +19,7 @@
 .mastodon-minimized-toggle {
   background: none;
   border: none;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
   font-size: 16px;
   cursor: pointer;
   padding: 4px 8px;
@@ -29,8 +29,8 @@
 }
 
 .mastodon-minimized-toggle:hover {
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
-  color: var(--highlight-text-color, #6364ff);
+  background: rgba(99, 100, 255, 0.1);
+  color: #6364ff;
 }
 
 .mastodon-viewer-header {
@@ -38,8 +38,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: var(--background-color, #fff);
-  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  background: #1a1e27;
+  border-bottom: 1px solid #393f4f;
   border-radius: 4px 4px 0 0;
 }
 
@@ -47,7 +47,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
 }
 
 .mastodon-toggle-btn {
@@ -57,14 +57,14 @@
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
-  color: var(--highlight-text-color, #6364ff);
+  color: #6364ff;
   font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .mastodon-toggle-btn:hover {
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
-  border-color: var(--highlight-text-color, #6364ff);
+  background: rgba(99, 100, 255, 0.05);
+  border-color: #6364ff;
 }
 
 .mastodon-viewer-content {
@@ -81,7 +81,7 @@
   display: block;
   font-weight: 600;
   margin-bottom: 6px;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
   font-size: 14px;
 }
 
@@ -98,20 +98,20 @@
   gap: 5px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
   padding: 4px 8px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
 }
 
 .mastodon-radio-label:hover {
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
+  background: rgba(99, 100, 255, 0.05);
 }
 
 .mastodon-radio-label input[type="radio"] {
   margin: 0;
   cursor: pointer;
-  accent-color: var(--highlight-text-color, #6364ff);
+  accent-color: #6364ff;
 }
 
 .mastodon-input-group {
@@ -122,7 +122,7 @@
   display: block;
   font-weight: 500;
   margin-bottom: 4px;
-  color: var(--secondary-text-color, #606984);
+  color: #9baec8;
   font-size: 13px;
 }
 
@@ -130,11 +130,11 @@
 .mastodon-input-group input[type="number"] {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border: 1px solid #393f4f;
   border-radius: 4px;
   font-size: 14px;
-  background: var(--simple-background-color, #fff);
-  color: var(--primary-text-color, #0e1419);
+  background: #0f1117;
+  color: #fff;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
@@ -142,15 +142,15 @@
 .mastodon-input-group input[type="text"]:focus,
 .mastodon-input-group input[type="number"]:focus {
   outline: none;
-  border-color: var(--highlight-text-color, #6364ff);
+  border-color: #6364ff;
   box-shadow: 0 0 0 2px rgba(99, 100, 255, 0.1);
 }
 
 .mastodon-fetch-btn {
   width: 100%;
   padding: 6px 12px;
-  background: var(--highlight-text-color, #6364ff);
-  color: var(--button-text-color, #fff);
+  background: #6364ff;
+  color: #fff;
   border: none;
   border-radius: 4px;
   font-size: 14px;
@@ -161,7 +161,7 @@
 }
 
 .mastodon-fetch-btn:hover {
-  background: var(--highlight-text-color-darker, #5853d4);
+  background: #5853d4;
   transform: translateY(-1px);
 }
 
@@ -188,67 +188,67 @@
 
 .mastodon-result::-webkit-scrollbar-thumb,
 .mastodon-viewer-content::-webkit-scrollbar-thumb {
-  background: var(--ui-base-lighter-color, #c0cdd9);
+  background: #393f4f;
   border-radius: 4px;
 }
 
 .mastodon-result::-webkit-scrollbar-thumb:hover,
 .mastodon-viewer-content::-webkit-scrollbar-thumb:hover {
-  background: var(--secondary-text-color, #606984);
+  background: #606984;
 }
 
 .mastodon-loading {
   text-align: center;
   padding: 20px;
-  color: var(--secondary-text-color, #606984);
+  color: #9baec8;
   font-size: 14px;
 }
 
 .mastodon-error {
-  color: var(--error-text-color, #d32f2f);
-  background: var(--error-background-color, rgba(211, 47, 47, 0.1));
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
   padding: 12px;
   border-radius: 4px;
   font-size: 13px;
   margin: 8px 0;
-  border: 1px solid var(--error-border-color, rgba(211, 47, 47, 0.2));
+  border: 1px solid rgba(255, 107, 107, 0.2);
 }
 
 .mastodon-no-results {
   text-align: center;
   padding: 20px;
-  color: var(--secondary-text-color, #606984);
+  color: #9baec8;
   font-size: 14px;
   font-style: italic;
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  background: rgba(99, 100, 255, 0.05);
+  border: 1px solid #393f4f;
   border-radius: 4px;
 }
 
 .mastodon-count {
   padding: 4px 8px;
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  background: rgba(99, 100, 255, 0.1);
+  border: 1px solid #393f4f;
   border-radius: 4px;
   margin-bottom: 6px;
   font-weight: 600;
   font-size: 12px;
-  color: var(--highlight-text-color, #6364ff);
+  color: #6364ff;
   text-align: center;
 }
 
 .mastodon-post-item {
   margin-bottom: 6px;
   padding: 8px 10px;
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border: 1px solid #393f4f;
   border-radius: 4px;
-  background: var(--simple-background-color, #fff);
+  background: #0f1117;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .mastodon-post-item:hover {
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
+  background: rgba(99, 100, 255, 0.05);
 }
 
 .mastodon-post-item:last-child {
@@ -258,21 +258,21 @@
 .mastodon-post-header {
   font-weight: 600;
   margin-bottom: 2px;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
   font-size: 13px;
   line-height: 1.3;
 }
 
 .mastodon-post-meta {
   font-size: 10px;
-  color: var(--secondary-text-color, #606984);
+  color: #9baec8;
   margin-bottom: 6px;
   line-height: 1.2;
 }
 
 .mastodon-post-content {
   line-height: 1.3;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
   font-size: 12px;
 }
 
@@ -307,33 +307,33 @@
   }
 
   .mastodon-minimized-toggle {
-    color: var(--primary-text-color, #fff);
+    color: #fff;
   }
 
   .mastodon-minimized-toggle:hover {
-    background: var(--ui-highlight-color, rgba(140, 141, 255, 0.1));
-    color: var(--highlight-text-color, #8c8dff);
+    background: rgba(140, 141, 255, 0.1);
+    color: #8c8dff;
   }
 
   /* ダークモード時の投稿アイテムスタイル */
   .mastodon-post-item {
-    background: var(--simple-background-color, #191b22);
-    border-color: var(--ui-base-lighter-color, #393f4f);
+    background: #0d0f14;
+    border-color: #393f4f;
   }
 
   .mastodon-post-item:hover {
-    background: var(--ui-highlight-color, rgba(140, 141, 255, 0.1));
-    border-color: var(--highlight-text-color, #8c8dff);
+    background: rgba(140, 141, 255, 0.1);
+    border-color: #8c8dff;
   }
 
   .mastodon-post-header {
     background: rgba(255, 255, 255, 0.05);
-    border-bottom-color: var(--ui-base-lighter-color, #393f4f);
+    border-bottom-color: #393f4f;
   }
 
   .mastodon-post-meta-large {
     background: rgba(0, 0, 0, 0.2);
-    border-bottom-color: var(--ui-base-lighter-color, #393f4f);
+    border-bottom-color: #393f4f;
   }
 
   .mastodon-post-content {
@@ -342,7 +342,7 @@
 
   .mastodon-post-media {
     background: rgba(255, 255, 255, 0.03);
-    border-top-color: var(--ui-base-lighter-color, #393f4f);
+    border-top-color: #393f4f;
   }
 }
 
@@ -372,7 +372,7 @@
 }
 
 .mastodon-post-time-inline {
-  color: var(--darker-text-color, #606984);
+  color: #606984;
   font-size: 12px;
   font-weight: normal;
   white-space: nowrap;
@@ -493,7 +493,7 @@
   border: 1px solid #393f4f;
   border-radius: 4px;
   overflow: hidden;
-  background: #1f232b;
+  background: #0f1117;
   transition: all 0.2s ease;
 }
 
@@ -561,7 +561,7 @@
 .mastodon-tooltip-url-simple {
   margin: 6px 0;
   padding: 6px;
-  background: #1f232b;
+  background: #0f1117;
   border-radius: 4px;
   border-left: 3px solid #4caf50;
   transition: all 0.2s ease;
@@ -653,9 +653,9 @@
 .mastodon-post-item {
   margin: 4px 0;
   padding: 0;
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border: 1px solid #393f4f;
   border-radius: 4px;
-  background: var(--simple-background-color, #fff);
+  background: #0f1117;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: none;
@@ -663,39 +663,39 @@
 }
 
 .mastodon-post-item:hover {
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.05));
+  background: rgba(99, 100, 255, 0.05);
   transform: none;
   box-shadow: none;
-  border-color: var(--highlight-text-color, #6364ff);
+  border-color: #6364ff;
 }
 
 .mastodon-post-header {
   margin-bottom: 0;
   padding: 8px 12px 6px 12px;
   background: rgba(99, 100, 255, 0.05);
-  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border-bottom: 1px solid #393f4f;
 }
 
 .mastodon-post-user-info {
   font-size: 12px;
   font-weight: 500;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .mastodon-post-user-info strong {
-  color: var(--highlight-text-color, #6364ff);
+  color: #6364ff;
 }
 
 .mastodon-post-meta-large {
-  color: var(--secondary-text-color, #606984);
+  color: #9baec8;
   font-size: 10px;
   font-weight: 400;
   margin: 0;
   padding: 6px 12px;
-  border-bottom: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border-bottom: 1px solid #393f4f;
   background: rgba(99, 100, 255, 0.03);
   display: flex;
   justify-content: space-between;
@@ -707,18 +707,18 @@
   line-height: 1.4;
   margin: 0;
   padding: 8px 12px;
-  color: var(--primary-text-color, #0e1419);
+  color: #fff;
   background: transparent;
 }
 
 .mastodon-post-media {
-  color: var(--secondary-text-color, #606984);
+  color: #9baec8;
   font-size: 10px;
   margin: 0;
   padding: 6px 12px 8px 12px;
   font-weight: 500;
   background: rgba(99, 100, 255, 0.03);
-  border-top: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  border-top: 1px solid #393f4f;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -731,13 +731,13 @@
 
 .mastodon-count {
   padding: 6px 10px;
-  background: var(--ui-highlight-color, rgba(99, 100, 255, 0.1));
-  border: 1px solid var(--ui-base-lighter-color, #c0cdd9);
+  background: rgba(99, 100, 255, 0.1);
+  border: 1px solid #393f4f;
   border-radius: 4px;
   margin-bottom: 8px;
   font-weight: 600;
   font-size: 12px;
-  color: var(--highlight-text-color, #6364ff);
+  color: #6364ff;
   text-align: center;
 }
 
@@ -773,7 +773,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--highlight-text-color, #6364ff);
+  background: #6364ff;
   transform: scaleX(0);
   transition: transform 0.2s ease;
   transform-origin: left;
