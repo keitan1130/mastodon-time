@@ -2,8 +2,25 @@
 
 let mastodonViewerInjected = false;
 
+// 現在のページからインスタンスURLを取得する関数
+function getCurrentInstanceUrl() {
+  // content scriptは現在のページのドメインを直接取得できる
+  return `${window.location.protocol}//${window.location.host}`;
+}
+
 function injectMastodonViewer() {
   if (mastodonViewerInjected) return;
+
+  // Mastodonページかどうかをチェック
+  const isMastodonPage = document.querySelector('.column-header__title') ||
+                        document.querySelector('[data-testid="column-header"]') ||
+                        document.querySelector('.compose-form') ||
+                        document.querySelector('.status__content');
+
+  if (!isMastodonPage) {
+    // Mastodonページではない場合は何もしない
+    return;
+  }
 
   // ホームの列ヘッダーを探す
   const homeHeader = document.querySelector('.column-header__title');
@@ -53,7 +70,7 @@ function injectMastodonViewer() {
 
       <div id="mastodonUserInput" class="mastodon-input-group" style="display: none;">
         <label for="mastodonUsernameField">ユーザー名:</label>
-        <input type="text" id="mastodonUsernameField" placeholder="@username">
+        <input type="text" id="mastodonUsernameField" placeholder="@keitan または @keitan@mastodon.social">
       </div>
 
       <div id="mastodonTimeInput" class="mastodon-input-group" style="display: none;">
@@ -231,9 +248,34 @@ async function handleSearch() {
 
       if (!username) throw new Error('ユーザー名を入力してください');
 
+      // @ を除去
       const cleanUsername = username.replace(/^@/, '');
-      if (!/^[\w\-\.]+$/.test(cleanUsername)) {
-        throw new Error('ユーザー名は英数字、ハイフン、ドットのみ使用可能です');
+
+      // リモートアカウント形式かローカル形式かを判定
+      if (cleanUsername.includes('@')) {
+        // @user@instance.com 形式の場合
+        const parts = cleanUsername.split('@');
+        if (parts.length !== 2) {
+          throw new Error('リモートアカウントは @user@instance.com の形式で入力してください');
+        }
+
+        const usernameOnly = parts[0];
+        const instanceDomain = parts[1];
+
+        // ユーザー名部分のみを検証
+        if (!/^[\w\-\.]+$/.test(usernameOnly)) {
+          throw new Error('ユーザー名は英数字、ハイフン、ドットのみ使用可能です');
+        }
+
+        // インスタンスドメインの基本的な検証
+        if (!/^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}$/.test(instanceDomain)) {
+          throw new Error('インスタンスドメインが正しくありません');
+        }
+      } else {
+        // ローカルアカウント形式の場合
+        if (!/^[\w\-\.]+$/.test(cleanUsername)) {
+          throw new Error('ユーザー名は英数字、ハイフン、ドットのみ使用可能です');
+        }
       }
 
       let timeFilter = null;
@@ -280,7 +322,8 @@ async function handleSearch() {
 
 // popup.jsから必要な関数をコピー
 async function fetchMastodonPost(id) {
-  const res = await fetch(`https://mastodon.compositecomputer.club/api/v1/statuses/${id}`);
+  const instanceUrl = getCurrentInstanceUrl();
+  const res = await fetch(`${instanceUrl}/api/v1/statuses/${id}`);
   if (!res.ok) throw new Error(`投稿取得エラー: ${res.status}`);
   return res.json();
 }
@@ -299,9 +342,10 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
 
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
+  const instanceUrl = getCurrentInstanceUrl();
 
   while (requestCount < maxRequests) {
-    const url = new URL('https://mastodon.compositecomputer.club/api/v1/timelines/public');
+    const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
     url.searchParams.set('limit', '40');
     url.searchParams.set('max_id', max);
     url.searchParams.set('since_id', sinceId);
@@ -341,8 +385,24 @@ async function fetchUserPosts(username, timeFilter = null) {
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
 
-  const lookupUrl = new URL('https://mastodon.compositecomputer.club/api/v1/accounts/lookup');
-  lookupUrl.searchParams.set('acct', username);
+  // ユーザー名の解析: user@instance.com か user かを判定
+  let targetInstanceUrl;
+  let cleanUsername;
+
+  if (username.includes('@')) {
+    // user@instance.com 形式の場合
+    const parts = username.split('@');
+    cleanUsername = parts[0]; // ユーザー名部分
+    const instanceDomain = parts[1]; // インスタンスドメイン部分
+    targetInstanceUrl = `https://${instanceDomain}`;
+  } else {
+    // user 形式の場合は現在のインスタンスを使用
+    targetInstanceUrl = getCurrentInstanceUrl();
+    cleanUsername = username;
+  }
+
+  const lookupUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/lookup`);
+  lookupUrl.searchParams.set('acct', cleanUsername);
 
   const accountRes = await fetch(lookupUrl, {
     headers: {
@@ -351,6 +411,12 @@ async function fetchUserPosts(username, timeFilter = null) {
       "Authorization": stored["authorization"]
     },
     credentials: "include"
+  }).catch(async () => {
+    // CORS エラーの場合は認証なしで試行
+    if (username.includes('@')) {
+      return await fetch(lookupUrl);
+    }
+    throw new Error('認証エラー');
   });
 
   if (!accountRes.ok) {
@@ -365,7 +431,7 @@ async function fetchUserPosts(username, timeFilter = null) {
   const maxRequests = 275;
 
   while (requestCount < maxRequests) {
-    const statusesUrl = new URL(`https://mastodon.compositecomputer.club/api/v1/accounts/${account.id}/statuses`);
+    const statusesUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
     statusesUrl.searchParams.set('limit', '40');
 
     if (maxId) {

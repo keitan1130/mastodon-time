@@ -1,7 +1,7 @@
 {
   "name": "Mastodon Post Viewer",
   "description": "Mastodon投稿検索",
-  "version": "1.32",
+  "version": "2.0",
   "manifest_version": 3,
   "action": {
     "default_popup": "time.html",
@@ -13,14 +13,14 @@
     "storage"
   ],
   "host_permissions": [
-    "https://mastodon.compositecomputer.club/*"
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://mastodon.compositecomputer.club/*"],
+      "matches": ["https://*/*"],
       "js": ["content.js"],
       "css": ["content.css"]
     }
