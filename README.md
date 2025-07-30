@@ -12,7 +12,10 @@ Mastodonサーバーのタイムラインと特定ユーザーの投稿を簡単
 - **進捗表示**: 大量データ取得時のリアルタイム進捗表示
 - **時間フィルタ**: 1〜24時間の柔軟な時間範囲設定
 - **ローカルタイムライン**: サーバーコミュニティメンバーの投稿のみを表示
+- **リモートアカウント対応**: 他のインスタンスのユーザー検索が可能
 - **ワンクリックアクセス**: 投稿をクリックして元投稿を新しいタブで開く
+- **ホバープレビュー**: 投稿にマウスをかざすと詳細情報を表示
+- **インスタンス設定**: UI上で簡単にインスタンスを変更可能
 
 ## 使用方法
 
@@ -37,7 +40,8 @@ Mastodonサーバーのタイムラインと特定ユーザーの投稿を簡単
 - **用途**: 特定の投稿を直接表示
 
 #### ユーザー検索
-- **ユーザー名**: `@keitan` または `keitan`（@マークは省略可能）
+- **ローカルユーザー**: `@keitan` または `keitan`（@マークは省略可能）
+- **リモートユーザー**: `@user@mastodon.social`（他のインスタンスのユーザー）
 - **時間指定**: `2025-07-26 14`（空欄の場合は最新投稿を取得）
 - **検索範囲**: 1〜24時間で設定
 - **取得数**: 最大200件（時間指定時は該当するすべての投稿）
@@ -49,20 +53,37 @@ Mastodonサーバーのタイムラインと特定ユーザーの投稿を簡単
 
 ## インストール方法
 
-### ステップ1: ファイルをダウンロード
+### 方法1: Chrome Web Storeからインストール（推奨）
 
-#### 方法A: GitHubからダウンロード
+**最も簡単で安全な方法です。**
+
+1. **Chrome Web Storeにアクセス**
+   - [Mastodon Post Viewer - Chrome Web Store](https://chromewebstore.google.com/detail/mastodon-post-viewer/iagalmohboebmmjjpihgadbaaiffjklm?utm_source=item-share-cb)
+
+2. **インストール**
+   - 「Chromeに追加」ボタンをクリック
+   - 確認ダイアログで「拡張機能を追加」をクリック
+
+3. **インストール完了**
+   - ブラウザの拡張機能バーにMastodonアイコンが表示されます
+   - 自動更新が有効になります
+
+### 方法2: 開発版を手動インストール（開発者向け）
+
+#### ステップ1: ファイルをダウンロード
+
+**方法A: GitHubからダウンロード**
 1. [リポジトリページ](https://github.com/keitan1130/mastodon-time)にアクセス
 2. 緑色の「Code」ボタンをクリック
 3. 「Download ZIP」を選択してダウンロード
 4. ZIPファイルを解凍
 
-#### 方法B: Git使用（開発者向け）
+**方法B: Git使用**
 ```bash
 git clone https://github.com/keitan1130/mastodon-time.git
 ```
 
-### ステップ2: Chrome拡張機能として登録
+#### ステップ2: Chrome拡張機能として登録
 
 1. **Chromeの拡張機能ページを開く**
    - アドレスバーに `chrome://extensions/` と入力してEnter
@@ -86,34 +107,52 @@ git clone https://github.com/keitan1130/mastodon-time.git
 
 ## アップデート方法
 
-### Git使用の場合
+### Chrome Web Store版（推奨）
+Chrome Web Store版をインストールしている場合は、自動的にアップデートされます。
+手動で更新する場合は：
+1. `chrome://extensions/` にアクセス
+2. 「デベロッパーモード」を有効にして「更新」ボタンをクリック
+
+### 開発版（手動インストール）
+
+**Git使用の場合**
 ```bash
 cd mastodon-time
 git pull
 ```
 
-### ZIP使用の場合
+**ZIP使用の場合**
 1. 新しいZIPファイルをダウンロード
 2. 古いフォルダと入れ替え
 
-### 拡張機能の更新
+**拡張機能の更新**
 1. `chrome://extensions/` にアクセス
 2. 「更新」ボタンをクリック、または拡張機能の「再読み込み」ボタンをクリック
 
 ## 設定・カスタマイズ
 
-### 他のMastodonサーバーで使用する場合
-1. `popup.js` と `content.js` ファイルをテキストエディタで開く
-2. 両ファイル内の `mastodon.compositecomputer.club` を希望のサーバーURLに置換
-3. 拡張機能を再読み込み
+### インスタンス設定
+1. **ブラウザ拡張機能アイコンをクリック**
+2. **「設定」セクションを展開**
+3. **「インスタンスURL」に使用したいMastodonサーバーのURLを入力**
+   - 例: `https://mastodon.social`、`https://pawoo.net`
+4. **「保存」ボタンをクリック**
+
+デフォルトは `https://mastodon.compositecomputer.club` に設定されています。
+
+### リモートアカウント検索
+他のインスタンスのユーザーを検索する場合：
+- **入力形式**: `@ユーザー名@インスタンス.com`
+- **例**: `@user@mastodon.social`
 
 ### 認証設定
 この拡張機能は既存のブラウザセッションを使用します。使用前に対象のMastodonサーバーにログインしていることを確認してください。
 
 ## 技術仕様
 
-- **対応サーバー**: 任意のMastodonサーバー（設定変更可能）
+- **対応サーバー**: 任意のMastodonサーバー（UI上で設定変更可能）
 - **デフォルトサーバー**: mastodon.compositecomputer.club
+- **リモートアカウント**: @user@instance.com 形式で他インスタンスのユーザー検索対応
 - **タイムラインタイプ**: ローカルタイムライン（サーバーコミュニティの投稿のみ）
 - **最大取得数**:
   - ポップアップ版：
@@ -125,6 +164,7 @@ git pull
 - **時間範囲**: 1〜24時間（ユーザー選択可能）
 - **API**: Mastodon REST API v1
 - **対応ブラウザ**: Google Chrome, Microsoft Edge, その他Chromium系ブラウザ
+- **配布方法**: Chrome Web Store + GitHub（オープンソース）
 - **ファイル構成**:
   - `manifest.json`: 拡張機能の設定
   - `popup.html/popup.js`: ポップアップ版のUI
@@ -149,6 +189,8 @@ git pull
 
 **Q: ユーザー検索でユーザーが見つからない**
 - A: ユーザー名のスペルを確認し、@マークの有無を試してください
+- A: リモートユーザーの場合は `@user@instance.com` 形式で入力してください
+- A: Misskeyなど非Mastodonインスタンスはサポートされていません
 
 ### サポート
 問題が解決しない場合は、[GitHub Issues](https://github.com/keitan1130/mastodon-time/issues)でご報告ください。
