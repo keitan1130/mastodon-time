@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const t = new Date(post.created_at).toLocaleString('ja-JP');
       const user = post.account.display_name || post.account.username;
       const h = `@${post.account.username}`;
-      const txt = stripHtmlTags(post.content) || 'テキストなし';
+      const txt = stripHtmlTags(post.content, true) || 'テキストなし';
 
       // メディア添付の情報
       let mediaInfo = '';
@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="mastodon-post-time-inline">${t}</span>
           </div>
         </div>
-        <div class="mastodon-post-content">${escapeHtml(txt)}</div>
+        <div class="mastodon-post-content" style="white-space: pre-wrap;">${escapeHtml(txt)}</div>
         ${mediaInfo}
       </div>`;
     }).join('');
@@ -513,7 +513,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- 共通ユーティリティ ---
   function showError(msg) { resultDiv.innerHTML = `<div class="error">${escapeHtml(msg)}</div>`; }
-  function stripHtmlTags(html) { const d = document.createElement('div'); d.innerHTML = html; return d.textContent||''; }
+
+  function stripHtmlTags(html, doRet = true) {
+    let text = html;
+
+    if (doRet) {
+      text = text.replace(/<\/p><p>/g, '\n\n');
+      text = text.replace(/<br\s*\/?>/g, '\n');
+    } else {
+      text = text.replace(/<\/p><p>/g, ' ');
+      text = text.replace(/<br\s*\/?>/g, ' ');
+    }
+
+    // HTMLタグを除去
+    const d = document.createElement('div');
+    d.innerHTML = text;
+    text = d.textContent || d.innerText || '';
+
+    // HTMLエンティティをデコード
+    text = text.replace(/&apos;/g, '\'');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&quot;/g, '"');
+
+    // 前後の空白・改行を除去
+    text = text.trim();
+
+    return text;
+  }
+
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
   // プレビュー機能
@@ -529,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const user = post.account.display_name || post.account.username;
     const username = `@${post.account.username}`;
     const statusesCount = post.account.statuses_count;
-    const txt = stripHtmlTags(post.content) || 'テキストなし';
+    const txt = stripHtmlTags(post.content, true) || 'テキストなし';
     const reblogs = post.reblogs_count;
     const favourites = post.favourites_count;
     const replies = post.replies_count;
@@ -623,9 +650,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       </div>
-      <div class="mastodon-tooltip-content">
-        ${escapeHtml(txt)}
-      </div>
+      <div class="mastodon-tooltip-content" style="white-space: pre-wrap;">${escapeHtml(txt)}</div>
       ${mediaInfo}
       ${urlPreview}
       <div class="mastodon-tooltip-interactions">
