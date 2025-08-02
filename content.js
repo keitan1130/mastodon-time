@@ -696,11 +696,11 @@ function showPostPreview(element, post) {
 
     displayContent = postInfo.displayContent;
     timeDisplay = `ブースト: ${boostTimeStr}<br>元投稿: ${originalTimeStr} | ID: ${post.id}`;
-    userInfo = `ブースト: ${escapeHtml(postInfo.boosterUser)}<br>元投稿: ${escapeHtml(postInfo.displayUser)} ${escapeHtml(postInfo.displayUsername)}`;
+    userInfo = `ブースト: <span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(postInfo.boosterUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.boosterUsername)}</span><br>元投稿: <span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${postInfo.originalPost.account.url}">${escapeHtml(postInfo.displayUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.displayUsername)}</span>`;
   } else {
     displayContent = postInfo.displayContent;
     timeDisplay = `${new Date(postInfo.displayTime).toLocaleString('ja-JP')} | ID: ${post.id}`;
-    userInfo = `${escapeHtml(postInfo.displayUser)} ${escapeHtml(postInfo.displayUsername)}`;
+    userInfo = `<span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(postInfo.displayUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.displayUsername)}</span>`;
   }
 
   const followers = postInfo.isBoost ? postInfo.originalPost.account.followers_count : post.account.followers_count;
@@ -796,7 +796,7 @@ function showPostPreview(element, post) {
         <img src="${avatar}" alt="アバター" class="mastodon-tooltip-avatar" loading="lazy">
         <div class="mastodon-tooltip-user-text">
           <div class="mastodon-tooltip-user">
-            <strong class="mastodon-tooltip-username" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${profileUrl}">${userInfo}</strong>
+            <div class="mastodon-tooltip-user-names">${userInfo}</div>
           </div>
           <div class="mastodon-tooltip-time">${timeDisplay}</div>
         </div>
@@ -873,26 +873,26 @@ function showPostPreview(element, post) {
     });
   }
 
-  // ユーザー名のクリックイベントを追加
-  const usernameElement = tooltip.querySelector('.mastodon-tooltip-username');
-  if (usernameElement) {
-    usernameElement.addEventListener('click', (e) => {
+  // 個別のクリック可能なユーザー名のイベントを追加
+  const clickableUsers = tooltip.querySelectorAll('.mastodon-tooltip-clickable-user');
+  clickableUsers.forEach(userElement => {
+    userElement.addEventListener('click', (e) => {
       e.stopPropagation();
-      const profileUrl = usernameElement.getAttribute('data-profile-url');
+      const profileUrl = userElement.getAttribute('data-profile-url');
       if (profileUrl) {
         window.open(profileUrl, '_blank');
       }
     });
 
     // ホバーエフェクトを追加
-    usernameElement.addEventListener('mouseenter', () => {
-      usernameElement.style.color = '#6364ff';
+    userElement.addEventListener('mouseenter', () => {
+      userElement.style.color = '#6364ff';
     });
 
-    usernameElement.addEventListener('mouseleave', () => {
-      usernameElement.style.color = '#fff';
+    userElement.addEventListener('mouseleave', () => {
+      userElement.style.color = '#fff';
     });
-  }
+  });
 
   // 投稿移動ボタンのクリックイベントを追加
   const goPostButton = tooltip.querySelector('.mastodon-tooltip-go-post');
