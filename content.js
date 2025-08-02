@@ -567,8 +567,8 @@ function displayPosts(posts) {
       const boostTimeStr = new Date(postInfo.boostTime).toLocaleString('ja-JP');
       const originalTimeStr = new Date(postInfo.displayTime).toLocaleString('ja-JP');
 
-      displayText = `[ブースト] ${escapeHtml(postInfo.displayUser)} ${originalTimeStr}\n${escapeHtml(postInfo.displayContent)}`;
-      timeDisplay = boostTimeStr;
+      displayText = escapeHtml(postInfo.displayContent);
+      timeDisplay = `ブースト: <span class="username">${escapeHtml(postInfo.boosterUser)}</span> ${boostTimeStr}\n元投稿: <span class="username">${escapeHtml(postInfo.displayUser)}</span> ${originalTimeStr}`;
     } else {
       displayText = escapeHtml(postInfo.displayContent);
       timeDisplay = new Date(postInfo.displayTime).toLocaleString('ja-JP');
@@ -584,8 +584,8 @@ function displayPosts(posts) {
     return `<div class="mastodon-post-item" data-url="${postInfo.displayUrl}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
       <div class="mastodon-post-header">
         <div class="mastodon-post-user-info">
-          <strong>${postInfo.isBoost ? escapeHtml(postInfo.boosterUser) : escapeHtml(postInfo.displayUser)}</strong>
-          <span class="mastodon-post-time-inline">${timeDisplay}</span>
+          ${postInfo.isBoost ? '' : `<strong>${escapeHtml(postInfo.displayUser)}</strong>`}
+          <span class="mastodon-post-time-inline" style="white-space: pre-line;">${timeDisplay}</span>
         </div>
       </div>
       <div class="mastodon-post-content" style="white-space: pre-wrap;">${displayText}</div>
@@ -695,8 +695,8 @@ function showPostPreview(element, post) {
     const originalTimeStr = new Date(postInfo.displayTime).toLocaleString('ja-JP');
 
     displayContent = postInfo.displayContent;
-    timeDisplay = `ブースト: ${boostTimeStr} | 元投稿: ${originalTimeStr} | ID: ${post.id}`;
-    userInfo = `${escapeHtml(postInfo.boosterUser)} がブースト | 元投稿: ${escapeHtml(postInfo.displayUser)} ${escapeHtml(postInfo.displayUsername)}`;
+    timeDisplay = `ブースト: ${boostTimeStr}<br>元投稿: ${originalTimeStr} | ID: ${post.id}`;
+    userInfo = `ブースト: ${escapeHtml(postInfo.boosterUser)}<br>元投稿: ${escapeHtml(postInfo.displayUser)} ${escapeHtml(postInfo.displayUsername)}`;
   } else {
     displayContent = postInfo.displayContent;
     timeDisplay = `${new Date(postInfo.displayTime).toLocaleString('ja-JP')} | ID: ${post.id}`;

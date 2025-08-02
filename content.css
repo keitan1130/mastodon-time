@@ -378,6 +378,12 @@
   white-space: nowrap;
 }
 
+/* ブースト投稿の時間表示内のユーザー名スタイル */
+.mastodon-post-time-inline .username {
+  color: #6364ff;
+  font-weight: 600;
+}
+
 .mastodon-tooltip-header {
   margin-bottom: 8px;
   border-bottom: 1px solid #393f4f;
