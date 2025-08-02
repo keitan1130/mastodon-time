@@ -433,6 +433,49 @@ document.addEventListener('DOMContentLoaded', function() {
     return (BigInt(utcMs) << 16n).toString();
   }
 
+  // ブーストされた投稿の適切な情報を取得するヘルパー関数
+  function getPostDisplayInfo(post) {
+    const isBoost = post.reblog != null;
+
+    if (isBoost) {
+      const originalPost = post.reblog;
+      const boosterUser = post.account.display_name || post.account.username;
+      const boosterUsername = `@${post.account.username}`;
+
+      // URLから /activity を削除
+      let fixedUrl = post.url;
+      if (fixedUrl && fixedUrl.endsWith('/activity')) {
+        fixedUrl = fixedUrl.slice(0, -9); // '/activity' を削除
+      }
+
+      return {
+        isBoost: true,
+        boosterUser,
+        boosterUsername,
+        boostTime: post.created_at,
+        originalPost,
+        displayUrl: fixedUrl,
+        displayContent: stripHtmlTags(originalPost.content, true) || 'テキストなし',
+        displayUser: originalPost.account.display_name || originalPost.account.username,
+        displayUsername: `@${originalPost.account.username}`,
+        displayTime: originalPost.created_at,
+        mediaAttachments: originalPost.media_attachments,
+        card: originalPost.card
+      };
+    } else {
+      return {
+        isBoost: false,
+        displayUrl: post.url,
+        displayContent: stripHtmlTags(post.content, true) || 'テキストなし',
+        displayUser: post.account.display_name || post.account.username,
+        displayUsername: `@${post.account.username}`,
+        displayTime: post.created_at,
+        mediaAttachments: post.media_attachments,
+        card: post.card
+      };
+    }
+  }
+
   // --- 表示 ---
   function displayPosts(posts) {
     if (!posts.length) {
@@ -444,26 +487,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const countText = `<div class="count">取得件数: ${posts.length}件</div>`;
 
     resultDiv.innerHTML = countText + posts.map(post => {
-      const t = new Date(post.created_at).toLocaleString('ja-JP');
-      const user = post.account.display_name || post.account.username;
-      const h = `@${post.account.username}`;
-      const txt = stripHtmlTags(post.content, true) || 'テキストなし';
+      const postInfo = getPostDisplayInfo(post);
+
+      let displayText = '';
+      let timeDisplay = '';
+
+      if (postInfo.isBoost) {
+        const boostTimeStr = new Date(postInfo.boostTime).toLocaleString('ja-JP');
+        const originalTimeStr = new Date(postInfo.displayTime).toLocaleString('ja-JP');
+
+        displayText = escapeHtml(postInfo.displayContent);
+        timeDisplay = `ブースト: <span class="username">${escapeHtml(postInfo.boosterUser)}</span> ${boostTimeStr}\n元投稿: <span class="username">${escapeHtml(postInfo.displayUser)}</span> ${originalTimeStr}`;
+      } else {
+        displayText = escapeHtml(postInfo.displayContent);
+        timeDisplay = new Date(postInfo.displayTime).toLocaleString('ja-JP');
+      }
 
       // メディア添付の情報
       let mediaInfo = '';
-      if (post.media_attachments && post.media_attachments.length > 0) {
-        const mediaTypes = post.media_attachments.map(m => m.type).join(', ');
-        mediaInfo = `<div class="mastodon-post-media">📎 添付: ${mediaTypes} (${post.media_attachments.length}件)</div>`;
+      if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
+        const mediaTypes = postInfo.mediaAttachments.map(m => m.type).join(', ');
+        mediaInfo = `<div class="mastodon-post-media">📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)</div>`;
       }
 
-      return `<div class="mastodon-post-item" data-url="${post.url}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
+      return `<div class="mastodon-post-item" data-url="${postInfo.displayUrl}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
         <div class="mastodon-post-header">
           <div class="mastodon-post-user-info">
-            <strong>${escapeHtml(user)}</strong>
-            <span class="mastodon-post-time-inline">${t}</span>
+            ${postInfo.isBoost ? '' : `<strong>${escapeHtml(postInfo.displayUser)}</strong>`}
+            <span class="mastodon-post-time-inline" style="white-space: pre-line;">${timeDisplay}</span>
           </div>
         </div>
-        <div class="mastodon-post-content" style="white-space: pre-wrap;">${escapeHtml(txt)}</div>
+        <div class="mastodon-post-content" style="white-space: pre-wrap;">${displayText}</div>
         ${mediaInfo}
       </div>`;
     }).join('');
@@ -548,27 +602,49 @@ document.addEventListener('DOMContentLoaded', function() {
     // 既存のツールチップを削除
     hidePostPreview();
 
+    // デバッグ: cardの情報をコンソールに出力
+    console.log('Post card info:', post.card);
+
     const tooltip = document.createElement('div');
     tooltip.id = 'mastodon-post-tooltip';
     tooltip.className = 'mastodon-post-tooltip';
 
-    const t = new Date(post.created_at).toLocaleString('ja-JP');
-    const user = post.account.display_name || post.account.username;
-    const username = `@${post.account.username}`;
-    const statusesCount = post.account.statuses_count;
-    const txt = stripHtmlTags(post.content, true) || 'テキストなし';
-    const reblogs = post.reblogs_count;
-    const favourites = post.favourites_count;
-    const replies = post.replies_count;
+    const postInfo = getPostDisplayInfo(post);
+
+    let displayContent = '';
+    let timeDisplay = '';
+    let userInfo = '';
+
+    if (postInfo.isBoost) {
+      const boostTimeStr = new Date(postInfo.boostTime).toLocaleString('ja-JP');
+      const originalTimeStr = new Date(postInfo.displayTime).toLocaleString('ja-JP');
+
+      displayContent = postInfo.displayContent;
+      timeDisplay = `ブースト: ${boostTimeStr}<br>元投稿: ${originalTimeStr} | ID: ${post.id}`;
+      userInfo = `ブースト: <span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(postInfo.boosterUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.boosterUsername)}</span><br>元投稿: <span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${postInfo.originalPost.account.url}">${escapeHtml(postInfo.displayUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.displayUsername)}</span>`;
+    } else {
+      displayContent = postInfo.displayContent;
+      timeDisplay = `${new Date(postInfo.displayTime).toLocaleString('ja-JP')} | ID: ${post.id}`;
+      userInfo = `<span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(postInfo.displayUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.displayUsername)}</span>`;
+    }
+
+    const followers = postInfo.isBoost ? postInfo.originalPost.account.followers_count : post.account.followers_count;
+    const following = postInfo.isBoost ? postInfo.originalPost.account.following_count : post.account.following_count;
+    const statusesCount = postInfo.isBoost ? postInfo.originalPost.account.statuses_count : post.account.statuses_count;
+    const reblogs = postInfo.isBoost ? postInfo.originalPost.reblogs_count : post.reblogs_count;
+    const favourites = postInfo.isBoost ? postInfo.originalPost.favourites_count : post.favourites_count;
+    const replies = postInfo.isBoost ? postInfo.originalPost.replies_count : post.replies_count;
+    const avatar = postInfo.isBoost ? postInfo.originalPost.account.avatar : post.account.avatar;
+    const profileUrl = postInfo.isBoost ? postInfo.originalPost.account.url : post.account.url;
 
     // メディア添付の情報とプレビュー
     let mediaInfo = '';
-    if (post.media_attachments && post.media_attachments.length > 0) {
-      const mediaTypes = post.media_attachments.map(m => m.type).join(', ');
-      mediaInfo = `<div class="mastodon-tooltip-media">📎 添付: ${mediaTypes} (${post.media_attachments.length}件)</div>`;
+    if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
+      const mediaTypes = postInfo.mediaAttachments.map(m => m.type).join(', ');
+      mediaInfo = `<div class="mastodon-tooltip-media">📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)</div>`;
 
       // メディアプレビューを生成
-      const mediaPreview = post.media_attachments.slice(0, 3).map(media => {
+      const mediaPreview = postInfo.mediaAttachments.slice(0, 3).map(media => {
         if (media.type === 'image') {
           return `<img src="${media.preview_url || media.url}" alt="画像" class="mastodon-tooltip-image" loading="lazy">`;
         } else if (media.type === 'video' || media.type === 'gifv') {
@@ -587,15 +663,15 @@ document.addEventListener('DOMContentLoaded', function() {
         mediaInfo += `<div class="mastodon-tooltip-media-preview">${mediaPreview}</div>`;
       }
 
-      if (post.media_attachments.length > 3) {
-        mediaInfo += `<div class="mastodon-tooltip-media-more">他 ${post.media_attachments.length - 3} 件</div>`;
+      if (postInfo.mediaAttachments.length > 3) {
+        mediaInfo += `<div class="mastodon-tooltip-media-more">他 ${postInfo.mediaAttachments.length - 3} 件</div>`;
       }
     }
 
     // URLプレビューの情報
     let urlPreview = '';
-    if (post.card && post.card.url && !post.media_attachments?.length) {
-      const card = post.card;
+    if (postInfo.card && postInfo.card.url && !postInfo.mediaAttachments?.length) {
+      const card = postInfo.card;
 
       // URLの安全な処理
       let domain = '';
@@ -618,45 +694,46 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       `;
-    } else if (post.card && post.card.url) {
+    } else if (postInfo.card && postInfo.card.url) {
       // メディアがあってもURLカードがある場合は簡易表示
       urlPreview = `
-        <div class="mastodon-tooltip-url-simple" data-url="${post.card.url}" style="cursor: pointer;">
-          <div class="mastodon-tooltip-url-title">🔗 ${escapeHtml(post.card.title || 'リンク')}</div>
-          <div class="mastodon-tooltip-url-link-only">${escapeHtml(post.card.url.length > 60 ? post.card.url.substring(0, 57) + '...' : post.card.url)}</div>
+        <div class="mastodon-tooltip-url-simple" data-url="${postInfo.card.url}" style="cursor: pointer;">
+          <div class="mastodon-tooltip-url-title">🔗 ${escapeHtml(postInfo.card.title || 'リンク')}</div>
+          <div class="mastodon-tooltip-url-link-only">${escapeHtml(postInfo.card.url.length > 60 ? postInfo.card.url.substring(0, 57) + '...' : postInfo.card.url)}</div>
         </div>
       `;
     }
 
     // 投稿の詳細情報
     let visibility = '';
-    switch(post.visibility) {
+    const visibilityValue = postInfo.isBoost ? postInfo.originalPost.visibility : post.visibility;
+    switch(visibilityValue) {
       case 'public': visibility = '🌐 公開'; break;
       case 'unlisted': visibility = '🔓 未収載'; break;
       case 'private': visibility = '🔒 フォロワー限定'; break;
       case 'direct': visibility = '✉️ ダイレクト'; break;
-      default: visibility = post.visibility;
+      default: visibility = visibilityValue;
     }
 
     tooltip.innerHTML = `
       <div class="mastodon-tooltip-header">
         <div class="mastodon-tooltip-user-info">
-          <img src="${post.account.avatar}" alt="アバター" class="mastodon-tooltip-avatar" loading="lazy">
+          <img src="${avatar}" alt="アバター" class="mastodon-tooltip-avatar" loading="lazy">
           <div class="mastodon-tooltip-user-text">
             <div class="mastodon-tooltip-user">
-              <strong class="mastodon-tooltip-username" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(user)}</strong> ${escapeHtml(username)}
+              <div class="mastodon-tooltip-user-names">${userInfo}</div>
             </div>
-            <div class="mastodon-tooltip-time">${t} | ID: ${post.id}</div>
+            <div class="mastodon-tooltip-time">${timeDisplay}</div>
           </div>
         </div>
       </div>
-      <div class="mastodon-tooltip-content" style="white-space: pre-wrap;">${escapeHtml(txt)}</div>
+      <div class="mastodon-tooltip-content" style="white-space: pre-wrap;">${escapeHtml(displayContent)}</div>
       ${mediaInfo}
       ${urlPreview}
       <div class="mastodon-tooltip-interactions">
         <span class="mastodon-tooltip-visibility">${visibility}</span>
         <span class="mastodon-tooltip-post-count">投稿数: ${statusesCount}</span>
-        <button class="mastodon-tooltip-go-post" style="cursor: pointer; background: none; border: none; color: #fff; font-size: 13px; text-decoration: underline; padding: 0; margin-left: 5px; transition: color 0.2s ease;" data-post-url="${post.url}">移動</button>
+        <button class="mastodon-tooltip-go-post" style="cursor: pointer; background: none; border: none; color: #fff; font-size: 13px; text-decoration: underline; padding: 0; margin-left: 5px; transition: color 0.2s ease;" data-post-url="${postInfo.displayUrl}">移動</button>
         <span class="mastodon-tooltip-counts">
           💬 ${replies} | 🔄 ${reblogs} | ⭐ ${favourites}
         </span>
@@ -664,8 +741,8 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     // ツールチップのスタイルを設定
-    const hasMedia = post.media_attachments && post.media_attachments.length > 0;
-    const hasUrlPreview = post.card && post.card.url && !post.media_attachments?.length;
+    const hasMedia = postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0;
+    const hasUrlPreview = postInfo.card && postInfo.card.url && !postInfo.mediaAttachments?.length;
     const maxWidth = (hasMedia || hasUrlPreview) ? '500px' : '400px';
 
     tooltip.style.cssText = `
@@ -721,26 +798,26 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    // ユーザー名のクリックイベントを追加
-    const usernameElement = tooltip.querySelector('.mastodon-tooltip-username');
-    if (usernameElement) {
-      usernameElement.addEventListener('click', (e) => {
+    // 個別のクリック可能なユーザー名のイベントを追加
+    const clickableUsers = tooltip.querySelectorAll('.mastodon-tooltip-clickable-user');
+    clickableUsers.forEach(userElement => {
+      userElement.addEventListener('click', (e) => {
         e.stopPropagation();
-        const profileUrl = usernameElement.getAttribute('data-profile-url');
+        const profileUrl = userElement.getAttribute('data-profile-url');
         if (profileUrl) {
           chrome.tabs.create({ url: profileUrl });
         }
       });
 
       // ホバーエフェクトを追加
-      usernameElement.addEventListener('mouseenter', () => {
-        usernameElement.style.color = '#6364ff';
+      userElement.addEventListener('mouseenter', () => {
+        userElement.style.color = '#6364ff';
       });
 
-      usernameElement.addEventListener('mouseleave', () => {
-        usernameElement.style.color = '#fff';
+      userElement.addEventListener('mouseleave', () => {
+        userElement.style.color = '#fff';
       });
-    }
+    });
 
     // 投稿移動ボタンのクリックイベントを追加
     const goPostButton = tooltip.querySelector('.mastodon-tooltip-go-post');
