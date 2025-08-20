@@ -218,6 +218,44 @@
         border-radius: 4px;
       }
 
+      /* エラー表示のスタイル */
+      .mastodon-time-input-error {
+        color: #ff6b6b;
+        background: rgba(255, 107, 107, 0.1);
+        padding: 6px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        margin-top: 4px;
+        border: 1px solid rgba(255, 107, 107, 0.3);
+        animation: errorFadeIn 0.3s ease-out;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .mastodon-time-input-error::before {
+        content: "⚠️";
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      @keyframes errorFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* エラー状態の入力フィールド */
+      input.error {
+        border-color: #ff6b6b !important;
+        box-shadow: 0 0 5px rgba(255, 107, 107, 0.3) !important;
+      }
+
       /* Dark mode support */
       @media (prefers-color-scheme: dark) {
         body {
