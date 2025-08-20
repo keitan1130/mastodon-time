@@ -218,6 +218,14 @@
         border-radius: 4px;
       }
 
+
+
+      /* エラー状態の入力フィールド */
+      input.error {
+        border-color: #ff6b6b !important;
+        box-shadow: 0 0 5px rgba(255, 107, 107, 0.3) !important;
+      }
+
       /* Dark mode support */
       @media (prefers-color-scheme: dark) {
         body {
@@ -283,14 +291,18 @@
       </div>
 
       <div id="timeInput" style="display: none;">
-        <label for="timeField">時間:</label>
-        <input type="text" id="timeField" placeholder="YYYY-MM-DD HH">
+        <label for="timeField">開始時刻:</label>
+        <input type="text" id="timeField" placeholder="YYYY-M-D HH:MM:SS">
       </div>
 
       <div id="timeRangeSelector">
-        <label for="timeRange">検索範囲:</label>
-        <input type="number" id="timeRange" value="1" min="1" max="24" style="width: 80px;">
-        <span>時間</span>
+        <label for="timeRange">時間:</label>
+        <input type="text" id="timeRange" placeholder="HH:MM:SS" style="width: 120px;">
+      </div>
+
+      <div id="generatedTimeDisplay" style="display: none;">
+        <label for="generatedTime">終了時刻:</label>
+        <input type="text" id="generatedTime" placeholder="YYYY-M-D HH:MM:SS" style="width: 100%;">
       </div>
 
       <button id="fetchPost">取得</button>
