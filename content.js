@@ -269,6 +269,19 @@ function adjustTimeRange(startTime, endTime, startField, endField, storageKey) {
       localStorage.setItem(storageKey, formatDateTime(adjustedStartTime));
     }
 
+    // 時間範囲フィールドも更新
+    const timeRangeField = document.getElementById('mastodonTimeRange');
+    if (timeRangeField) {
+      const diffMs = adjustedEndTime.getTime() - adjustedStartTime.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+      const timeRangeStr = `${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
+      timeRangeField.value = timeRangeStr;
+      localStorage.setItem('mastodon-content-timeRangeInput', timeRangeStr);
+    }
+
     return { start: adjustedStartTime, end: adjustedEndTime };
   }
 
@@ -319,20 +332,18 @@ function updateTimeRangeFromEndTime() {
       return;
     }
 
-    if (endTime <= startTime) {
-      // 終了時刻が開始時刻以前の場合 - 何もしない
-      return;
-    }
-
-    // 時間差を計算
+    // 時間差を計算（マイナス値も許可）
     const diffMs = endTime.getTime() - startTime.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    const absDiffMs = Math.abs(diffMs);
+    const sign = diffMs < 0 ? '-' : '';
 
-    // 24時間を超える場合も許可
+    const diffHours = Math.floor(absDiffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((absDiffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffSeconds = Math.floor((absDiffMs % (1000 * 60)) / 1000);
+
+    // 24時間を超える場合も許可、マイナス値も表示
     // HH:MM:SS 形式で設定
-    const timeRangeStr = `${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
+    const timeRangeStr = `${sign}${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
     timeRangeField.value = timeRangeStr;
     localStorage.setItem('mastodon-content-timeRangeInput', timeRangeStr);
   } catch (e) {
