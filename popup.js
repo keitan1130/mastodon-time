@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
       localStorage.setItem('mastodon-postId', this.value);
     } else if (type === 'time') {
       localStorage.setItem('mastodon-timeRange', this.value);
+      updateGeneratedTimeRange();
     }
   });
 
@@ -59,15 +60,116 @@ document.addEventListener('DOMContentLoaded', function() {
   if (timeField) {
     timeField.addEventListener('input', function() {
       localStorage.setItem('mastodon-userTime', this.value);
+      updateGeneratedTimeRange();
     });
   }
 
   // 時間範囲セレクタの変更も保存
   const timeRangeSelect = document.getElementById('timeRange');
   if (timeRangeSelect) {
-    timeRangeSelect.addEventListener('change', function() {
-      localStorage.setItem('mastodon-hourRange', this.value);
+    timeRangeSelect.addEventListener('input', function() {
+      localStorage.setItem('mastodon-timeRangeInput', this.value);
+      updateGeneratedTimeRange();
     });
+  }
+
+  // 編集ボタンのイベントリスナー
+  const editButton = document.getElementById('editTimeRange');
+  if (editButton) {
+    editButton.addEventListener('click', function() {
+      const generatedField = document.getElementById('generatedTime');
+      if (generatedField) {
+        generatedField.readOnly = !generatedField.readOnly;
+        generatedField.style.background = generatedField.readOnly ? '#f0f0f0' : '#fff';
+        this.textContent = generatedField.readOnly ? '編集' : '確定';
+      }
+    });
+  }
+
+  function updateGeneratedTimeRange() {
+    const type = document.querySelector('input[name="inputType"]:checked').value;
+    const generatedField = document.getElementById('generatedTime');
+    
+    if (type === 'user') {
+      const dateTimeInput = document.getElementById('timeField').value.trim();
+      const timeRangeInput = document.getElementById('timeRange').value.trim();
+      
+      if (dateTimeInput && timeRangeInput) {
+        try {
+          const startTime = parseDateTime(dateTimeInput);
+          const endTime = parseAndAddTime(startTime, timeRangeInput);
+          generatedField.value = `${formatDateTime(startTime)} ～ ${formatDateTime(endTime)}`;
+        } catch (e) {
+          generatedField.value = 'エラー: 時間形式を確認してください';
+        }
+      }
+    } else if (type === 'time') {
+      const dateTimeInput = inputField.value.trim();
+      const timeRangeInput = document.getElementById('timeRange').value.trim();
+      
+      if (dateTimeInput && timeRangeInput) {
+        try {
+          const startTime = parseDateTime(dateTimeInput);
+          const endTime = parseAndAddTime(startTime, timeRangeInput);
+          generatedField.value = `${formatDateTime(startTime)} ～ ${formatDateTime(endTime)}`;
+        } catch (e) {
+          generatedField.value = 'エラー: 時間形式を確認してください';
+        }
+      }
+    }
+  }
+
+  function parseDateTime(input) {
+    const timeMatch = input.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+    if (!timeMatch) throw new Error('Invalid datetime format');
+
+    const datePart = timeMatch[1];
+    let Y, Mo, D;
+    
+    if (datePart.includes('-')) {
+      [Y, Mo, D] = datePart.split('-').map(Number);
+    } else {
+      [Y, Mo, D] = datePart.split('/').map(Number);
+    }
+    
+    const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+    const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+    const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
+
+    return new Date(Y, Mo-1, D, hh, mm, ss, 0);
+  }
+
+  function parseAndAddTime(startDate, timeInput) {
+    // 10 → 10:00:00, 10:30 → 10:30:00, 10:30:20 → 10:30:20 の形式を解析
+    let hh = 0, mm = 0, ss = 0;
+    
+    if (timeInput.includes(':')) {
+      const parts = timeInput.split(':');
+      hh = Number(parts[0]) || 0;
+      mm = Number(parts[1]) || 0;
+      ss = Number(parts[2]) || 0;
+    } else {
+      // 数字のみの場合は時間として扱う
+      hh = Number(timeInput) || 0;
+    }
+
+    const endDate = new Date(startDate.getTime());
+    endDate.setHours(startDate.getHours() + hh);
+    endDate.setMinutes(startDate.getMinutes() + mm);
+    endDate.setSeconds(startDate.getSeconds() + ss);
+    
+    return endDate;
+  }
+
+  function formatDateTime(date) {
+    const Y = date.getFullYear();
+    const M = String(date.getMonth() + 1).padStart(2, '0');
+    const D = String(date.getDate()).padStart(2, '0');
+    const H = String(date.getHours()).padStart(2, '0');
+    const Min = String(date.getMinutes()).padStart(2, '0');
+    const S = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${Y}-${M}-${D} ${H}:${Min}:${S}`;
   }
 
   function updateInputUI() {
@@ -75,11 +177,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const timeRangeSelector = document.getElementById('timeRangeSelector');
     const userInput = document.getElementById('userInput');
     const timeInput = document.getElementById('timeInput');
+    const generatedTimeDisplay = document.getElementById('generatedTimeDisplay');
 
     // すべての入力欄を非表示にする
     inputField.style.display = 'none';
     if (userInput) userInput.style.display = 'none';
     if (timeInput) timeInput.style.display = 'none';
+    if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'none';
 
     if (type === 'id') {
       inputField.style.display = 'block';
@@ -87,6 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
       inputField.value = localStorage.getItem('mastodon-postId') || '114914719105992385';
       inputField.placeholder = '投稿ID';
       if (timeRangeSelector) timeRangeSelector.style.display = 'none';
+      if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'none';
     } else if (type === 'user') {
       if (userInput) userInput.style.display = 'block';
       if (timeInput) timeInput.style.display = 'block';
@@ -112,6 +217,20 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       if (timeRangeSelector) timeRangeSelector.style.display = 'block';
+      if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'block';
+
+      // 時間範囲の値を設定
+      const timeRangeSelect = document.getElementById('timeRange');
+      if (timeRangeSelect) {
+        const savedTimeRangeInput = localStorage.getItem('mastodon-timeRangeInput');
+        if (savedTimeRangeInput) {
+          timeRangeSelect.value = savedTimeRangeInput;
+        } else {
+          timeRangeSelect.value = '1:00:00'; // デフォルト値
+        }
+      }
+      
+      updateGeneratedTimeRange();
     } else {
       // 時間範囲検索
       inputField.style.display = 'block';
@@ -129,15 +248,20 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       inputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS';
       if (timeRangeSelector) timeRangeSelector.style.display = 'block';
-    }
+      if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'block';
 
-    // 時間範囲セレクタの値も復元
-    const timeRangeSelect = document.getElementById('timeRange');
-    if (timeRangeSelect) {
-      const savedRange = localStorage.getItem('mastodon-hourRange');
-      if (savedRange) {
-        timeRangeSelect.value = savedRange;
+      // 時間範囲の値を設定
+      const timeRangeSelect = document.getElementById('timeRange');
+      if (timeRangeSelect) {
+        const savedTimeRangeInput = localStorage.getItem('mastodon-timeRangeInput');
+        if (savedTimeRangeInput) {
+          timeRangeSelect.value = savedTimeRangeInput;
+        } else {
+          timeRangeSelect.value = '1:00:00'; // デフォルト値
+        }
       }
+      
+      updateGeneratedTimeRange();
     }
 
     resultDiv.innerHTML = '';
@@ -215,10 +339,10 @@ document.addEventListener('DOMContentLoaded', function() {
           const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
           const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
           const timeRangeSelect = document.getElementById('timeRange');
-          const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
+          const timeRangeInput = timeRangeSelect ? timeRangeSelect.value.trim() : '1:00:00';
 
           const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
-          const endJst = new Date(Y, Mo-1, D, hh + rangeHours, mm, ss, 0);
+          const endJst = parseAndAddTime(startJst, timeRangeInput);
           timeFilter = { start: startJst, end: endJst };
         }
 
@@ -250,11 +374,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
         const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
         const timeRangeSelect = document.getElementById('timeRange');
-        const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
+        const timeRangeInput = timeRangeSelect ? timeRangeSelect.value.trim() : '1:00:00';
 
-        // 範囲設定: 指定時間から選択した時間数後まで
+        // 範囲設定: 指定時間から時間範囲入力で指定した時間後まで
         const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
-        const endJst = new Date(Y, Mo-1, D, hh + rangeHours, mm, ss, 0);
+        const endJst = parseAndAddTime(startJst, timeRangeInput);
 
         const startId = generateSnowflakeIdFromJst(startJst);
         const endId = generateSnowflakeIdFromJst(endJst);
