@@ -169,6 +169,65 @@
   transform: translateY(0);
 }
 
+/* 時間範囲生成表示エリアのスタイル */
+.mastodon-input-group #mastodonGeneratedTime,
+.mastodon-input-group #generatedTime {
+  background: #0f1117;
+  border: 1px solid #393f4f;
+  color: #9baec8;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.mastodon-input-group #mastodonGeneratedTime[readonly],
+.mastodon-input-group #generatedTime[readonly] {
+  background: #191b22;
+  color: #9baec8;
+  cursor: default;
+}
+
+.mastodon-input-group #mastodonGeneratedTime:not([readonly]),
+.mastodon-input-group #generatedTime:not([readonly]) {
+  background: #0f1117;
+  color: #fff;
+}
+
+/* 編集ボタンのスタイル */
+#mastodonEditTimeRange,
+#editTimeRange {
+  background: rgba(99, 100, 255, 0.1);
+  border: 1px solid #393f4f;
+  color: #6364ff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  margin-top: 4px;
+}
+
+#mastodonEditTimeRange:hover,
+#editTimeRange:hover {
+  background: rgba(99, 100, 255, 0.2);
+  border-color: #6364ff;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+#mastodonEditTimeRange:active,
+#editTimeRange:active {
+  transform: translateY(0);
+}
+
+/* 時間範囲入力フィールドのスタイル */
+.mastodon-input-group input[type="text"]#mastodonTimeRange,
+.mastodon-input-group input[type="text"]#timeRange {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Fira Mono', 'Droid Sans Mono', 'Consolas', monospace;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
 .mastodon-result {
   background: transparent;
   padding: 0;
@@ -287,6 +346,22 @@
     margin-left: -8px;
     margin-right: -8px;
   }
+
+  /* モバイルでの時間編集ボタンの調整 */
+  #mastodonEditTimeRange,
+  #editTimeRange {
+    padding: 6px 12px;
+    font-size: 13px;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  /* モバイルでの時間範囲入力フィールドの調整 */
+  .mastodon-input-group input[type="text"]#mastodonTimeRange,
+  .mastodon-input-group input[type="text"]#timeRange {
+    text-align: left;
+    letter-spacing: normal;
+  }
 }
 
 /* Dark mode support */
@@ -343,6 +418,33 @@
   .mastodon-post-media {
     background: rgba(255, 255, 255, 0.03);
     border-top-color: #393f4f;
+  }
+
+  /* ダークモード時の時間編集関連スタイル */
+  #mastodonEditTimeRange,
+  #editTimeRange {
+    background: rgba(140, 141, 255, 0.1);
+    border-color: #393f4f;
+    color: #8c8dff;
+  }
+
+  #mastodonEditTimeRange:hover,
+  #editTimeRange:hover {
+    background: rgba(140, 141, 255, 0.2);
+    border-color: #8c8dff;
+    color: #fff;
+  }
+
+  .mastodon-input-group #mastodonGeneratedTime[readonly],
+  .mastodon-input-group #generatedTime[readonly] {
+    background: #0d0f14;
+    color: #9baec8;
+  }
+
+  .mastodon-input-group #mastodonGeneratedTime:not([readonly]),
+  .mastodon-input-group #generatedTime:not([readonly]) {
+    background: #0f1117;
+    color: #fff;
   }
 }
 
