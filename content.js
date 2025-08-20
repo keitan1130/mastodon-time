@@ -259,19 +259,19 @@ function adjustTimeRange(startTime, endTime, startField, endField, storageKey) {
     const temp = startTime;
     const adjustedStartTime = endTime;
     const adjustedEndTime = temp;
-    
+
     // UIを更新
     startField.value = formatDateTime(adjustedStartTime);
     endField.value = formatDateTime(adjustedEndTime);
-    
+
     // localStorage更新
     if (storageKey) {
       localStorage.setItem(storageKey, formatDateTime(adjustedStartTime));
     }
-    
+
     return { start: adjustedStartTime, end: adjustedEndTime };
   }
-  
+
   return { start: startTime, end: endTime };
 }
 
@@ -295,7 +295,6 @@ function updateTimeRangeFromEndTime() {
     // 終了時刻が空の場合は時間範囲もクリア
     timeRangeField.value = '';
     localStorage.removeItem('mastodon-content-timeRangeInput');
-    clearTimeInputError(generatedField);
     return;
   }
 
@@ -316,14 +315,12 @@ function updateTimeRangeFromEndTime() {
     }
 
     if (!startTime) {
-      // 開始時刻が設定されていない場合 - エラー表示のみ
-      showTimeInputError(generatedField, '開始時刻を先に入力してください');
+      // 開始時刻が設定されていない場合 - 何もしない
       return;
     }
 
     if (endTime <= startTime) {
-      // 終了時刻が開始時刻以前の場合 - エラー表示のみ、自動修正しない
-      showTimeInputError(generatedField, '終了時刻は開始時刻より後にしてください');
+      // 終了時刻が開始時刻以前の場合 - 何もしない
       return;
     }
 
@@ -333,58 +330,15 @@ function updateTimeRangeFromEndTime() {
     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
 
-    // 24時間を超える場合は警告（自動修正しない）
-    if (diffHours >= 24) {
-      showTimeInputError(generatedField, '時間範囲が24時間を超えています');
-    }
-
+    // 24時間を超える場合も許可
     // HH:MM:SS 形式で設定
     const timeRangeStr = `${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
     timeRangeField.value = timeRangeStr;
     localStorage.setItem('mastodon-content-timeRangeInput', timeRangeStr);
-
-    // エラー表示をクリア
-    clearTimeInputError(generatedField);
   } catch (e) {
-    // 日時形式エラーの場合 - エラー表示のみ
-    showTimeInputError(generatedField, '日時形式が正しくありません（例：2024-01-01 12:00:00）');
+    // 日時形式エラーの場合 - 何もしない
     console.warn('時間範囲の逆算でエラー:', e);
   }
-}
-
-// エラー表示用のヘルパー関数
-function showTimeInputError(inputElement, message) {
-  // 既存のエラーメッセージを削除
-  clearTimeInputError(inputElement);
-
-  // エラーメッセージ要素を作成
-  const errorDiv = document.createElement('div');
-  errorDiv.className = 'mastodon-time-input-error';
-  errorDiv.textContent = message;
-
-  // 入力フィールドを一時的に赤くハイライト
-  inputElement.style.borderColor = '#ff6b6b';
-  inputElement.style.boxShadow = '0 0 3px rgba(255, 107, 107, 0.5)';
-
-  // エラーメッセージを挿入
-  inputElement.parentNode.insertBefore(errorDiv, inputElement.nextSibling);
-
-  // 3秒後にエラー表示をクリア
-  setTimeout(() => {
-    clearTimeInputError(inputElement);
-  }, 3000);
-}
-
-function clearTimeInputError(inputElement) {
-  // エラーメッセージを削除
-  const errorDiv = inputElement.parentNode.querySelector('.mastodon-time-input-error');
-  if (errorDiv) {
-    errorDiv.remove();
-  }
-
-  // ハイライトをクリア
-  inputElement.style.borderColor = '';
-  inputElement.style.boxShadow = '';
 }
 
 function updateInputUI() {
