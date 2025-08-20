@@ -115,21 +115,16 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function parseDateTime(input) {
-    const timeMatch = input.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+    // 混在区切り文字にも対応した正規表現
+    const timeMatch = input.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
     if (!timeMatch) throw new Error('Invalid datetime format');
 
-    const datePart = timeMatch[1];
-    let Y, Mo, D;
-
-    if (datePart.includes('-')) {
-      [Y, Mo, D] = datePart.split('-').map(Number);
-    } else {
-      [Y, Mo, D] = datePart.split('/').map(Number);
-    }
-
-    const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
-    const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
-    const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
+    const Y = Number(timeMatch[1]);
+    const Mo = Number(timeMatch[2]);
+    const D = Number(timeMatch[3]);
+    const hh = timeMatch[4] ? Number(timeMatch[4]) : 0;
+    const mm = timeMatch[5] ? Number(timeMatch[5]) : 0;
+    const ss = timeMatch[6] ? Number(timeMatch[6]) : 0;
 
     return new Date(Y, Mo-1, D, hh, mm, ss, 0);
   }
