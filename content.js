@@ -74,19 +74,19 @@ function injectMastodonViewer() {
       </div>
 
       <div id="mastodonTimeInput" class="mastodon-input-group" style="display: none;">
-        <label for="mastodonTimeField">時間:</label>
-        <input type="text" id="mastodonTimeField" placeholder="YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS">
+        <label for="mastodonTimeField">開始時刻:</label>
+        <input type="text" id="mastodonTimeField" placeholder="YYYY-M-D HH:MM:SS">
       </div>
 
       <div id="mastodonTimeRangeSelector" class="mastodon-input-group">
-        <label for="mastodonTimeRange">終了時刻:</label>
+        <label for="mastodonTimeRange">時間:</label>
         <input type="text" id="mastodonTimeRange" placeholder="HH:MM:SS" style="width: 120px;">
         <span>（開始時刻に追加）</span>
       </div>
 
       <div id="mastodonGeneratedTimeDisplay" class="mastodon-input-group">
-        <label for="mastodonGeneratedTime">終了時刻（編集可能）:</label>
-        <input type="text" id="mastodonGeneratedTime" placeholder="YYYY-MM-DD HH:MM:SS" style="width: 100%;">
+        <label for="mastodonGeneratedTime">終了時刻:</label>
+        <input type="text" id="mastodonGeneratedTime" placeholder="YYYY-M-D HH:MM:SS" style="width: 100%;">
       </div>
 
       <button id="mastodonFetchPost" class="mastodon-fetch-btn">取得</button>
@@ -370,7 +370,7 @@ function updateInputUI() {
       const hour = String(now.getHours()).padStart(2, '0');
       mainInputField.value = `${year}-${month}-${day} ${hour}`;
     }
-    mainInputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS';
+    mainInputField.placeholder = 'YYYY/M/D H:MM:SS';
     timeRangeSelector.style.display = 'block';
     generatedTimeDisplay.style.display = 'block';
 
