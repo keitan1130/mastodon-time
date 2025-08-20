@@ -4,7 +4,7 @@
   "version": "2.2",
   "manifest_version": 3,
   "action": {
-    "default_popup": "time.html",
+    "default_popup": "popup.html",
     "default_icon": "mastodon-icon.png"
   },
   "permissions": [
