@@ -75,7 +75,7 @@ function injectMastodonViewer() {
 
       <div id="mastodonTimeInput" class="mastodon-input-group" style="display: none;">
         <label for="mastodonTimeField">時間:</label>
-        <input type="text" id="mastodonTimeField" placeholder="YYYY-MM-DD HH">
+        <input type="text" id="mastodonTimeField" placeholder="YYYY-MM-DD HH または YYYY/MM/DD HH">
       </div>
 
       <div id="mastodonTimeRangeSelector" class="mastodon-input-group">
@@ -216,7 +216,7 @@ function updateInputUI() {
       const hour = String(now.getHours()).padStart(2, '0');
       mainInputField.value = `${year}-${month}-${day} ${hour}`;
     }
-    mainInputField.placeholder = 'YYYY-MM-DD HH';
+    mainInputField.placeholder = 'YYYY-MM-DD HH または YYYY/MM/DD HH';
     timeRangeSelector.style.display = 'block';
   }
 
@@ -280,10 +280,18 @@ async function handleSearch() {
 
       let timeFilter = null;
       if (timeInput) {
-        const timeMatch = timeInput.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2})$/);
-        if (!timeMatch) throw new Error('時間は YYYY-MM-DD HH の形式で入力してください');
+        // 2025-11-30 10 または 2025/11/30 10 形式をサポート
+        const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
+        if (!timeMatch) throw new Error('時間は YYYY-MM-DD HH または YYYY/MM/DD HH の形式で入力してください');
 
-        const [Y, Mo, D] = timeMatch[1].split('-').map(Number);
+        const datePart = timeMatch[1];
+        let Y, Mo, D;
+        
+        if (datePart.includes('-')) {
+          [Y, Mo, D] = datePart.split('-').map(Number);
+        } else {
+          [Y, Mo, D] = datePart.split('/').map(Number);
+        }
         const hh = Number(timeMatch[2]);
         const timeRangeSelect = document.getElementById('mastodonTimeRange');
         const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
@@ -299,10 +307,18 @@ async function handleSearch() {
       const raw = document.getElementById('mastodonPostIdOrTime').value.trim();
       if (!raw) throw new Error('時間を入力してください');
 
-      const timeMatch = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2})$/);
-      if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD HH です');
+      // 2025-11-30 10 または 2025/11/30 10 形式をサポート
+      const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
+      if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD HH または YYYY/MM/DD HH です');
 
-      const [Y, Mo, D] = timeMatch[1].split('-').map(Number);
+      const datePart = timeMatch[1];
+      let Y, Mo, D;
+      
+      if (datePart.includes('-')) {
+        [Y, Mo, D] = datePart.split('-').map(Number);
+      } else {
+        [Y, Mo, D] = datePart.split('/').map(Number);
+      }
       const hh = Number(timeMatch[2]);
       const timeRangeSelect = document.getElementById('mastodonTimeRange');
       const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;

@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hour = String(now.getHours()).padStart(2, '0');
         inputField.value = `${year}-${month}-${day} ${hour}`;
       }
-      inputField.placeholder = 'YYYY-MM-DD HH';
+      inputField.placeholder = 'YYYY-MM-DD HH または YYYY/MM/DD HH';
       if (timeRangeSelector) timeRangeSelector.style.display = 'block';
     }
 
@@ -194,11 +194,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let timeFilter = null;
         if (timeInput) {
-          // 時間が指定されている場合
-          const timeMatch = timeInput.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2})$/);
-          if (!timeMatch) throw new Error('時間は YYYY-MM-DD HH の形式で入力してください');
+          // 時間が指定されている場合: 2025-11-30 10 または 2025/11/30 10 形式をサポート
+          const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
+          if (!timeMatch) throw new Error('時間は YYYY-MM-DD HH または YYYY/MM/DD HH の形式で入力してください');
 
-          const [Y, Mo, D] = timeMatch[1].split('-').map(Number);
+          const datePart = timeMatch[1];
+          let Y, Mo, D;
+          
+          if (datePart.includes('-')) {
+            [Y, Mo, D] = datePart.split('-').map(Number);
+          } else {
+            [Y, Mo, D] = datePart.split('/').map(Number);
+          }
           const hh = Number(timeMatch[2]);
           const timeRangeSelect = document.getElementById('timeRange');
           const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
@@ -215,11 +222,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const raw = inputField.value.trim();
         if (!raw) return showError('時間を入力してください');
 
-        // "YYYY-MM-DD HH" 形式のみ
-        const timeMatch = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2})$/);
-        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD HH です');
+        // 時間範囲検索: 2025-11-30 10 または 2025/11/30 10 形式をサポート
+        const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
+        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD HH または YYYY/MM/DD HH です');
 
-        const [Y, Mo, D] = timeMatch[1].split('-').map(Number);
+        const datePart = timeMatch[1];
+        let Y, Mo, D;
+        
+        if (datePart.includes('-')) {
+          [Y, Mo, D] = datePart.split('-').map(Number);
+        } else {
+          [Y, Mo, D] = datePart.split('/').map(Number);
+        }
         const hh = Number(timeMatch[2]);
         const timeRangeSelect = document.getElementById('timeRange');
         const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
