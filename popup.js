@@ -136,6 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function parseAndAddTime(startDate, timeInput) {
     // 10 → 10:00:00, 10:30 → 10:30:00, 10:30:20 → 10:30:20 の形式を解析
+    // マイナス値もサポート: -1:30:00 → -1時間30分
     let hh = 0, mm = 0, ss = 0;
 
     if (timeInput.includes(':')) {
@@ -144,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
       mm = Number(parts[1]) || 0;
       ss = Number(parts[2]) || 0;
     } else {
-      // 数字のみの場合は時間として扱う
+      // 数字のみの場合は時間として扱う（マイナス値も対応）
       hh = Number(timeInput) || 0;
     }
 
@@ -154,6 +155,29 @@ document.addEventListener('DOMContentLoaded', function() {
     endDate.setSeconds(startDate.getSeconds() + ss);
 
     return endDate;
+  }
+
+  // 開始時刻と終了時刻を自動調整する関数
+  function adjustTimeRange(startTime, endTime, startField, endField, storageKey) {
+    if (endTime <= startTime) {
+      // 終了時刻が開始時刻以前の場合、入れ替える
+      const temp = startTime;
+      const adjustedStartTime = endTime;
+      const adjustedEndTime = temp;
+      
+      // UIを更新
+      startField.value = formatDateTime(adjustedStartTime);
+      endField.value = formatDateTime(adjustedEndTime);
+      
+      // localStorage更新
+      if (storageKey) {
+        localStorage.setItem(storageKey, formatDateTime(adjustedStartTime));
+      }
+      
+      return { start: adjustedStartTime, end: adjustedEndTime };
+    }
+    
+    return { start: startTime, end: endTime };
   }
 
   function formatDateTime(date) {
@@ -438,34 +462,32 @@ document.addEventListener('DOMContentLoaded', function() {
           const timeRangeInput = timeRangeSelect ? timeRangeSelect.value.trim() : '1:00:00';
 
           const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
-          
-          // 終了時刻フィールドから終了時刻を取得して検証
+
+          // 終了時刻フィールドから終了時刻を取得して検証・入れ替え
           const generatedField = document.getElementById('generatedTime');
+          const startField = document.getElementById('timeField');
           let endJst;
-          
+
           if (generatedField && generatedField.value.trim()) {
             try {
               const userEndTime = parseDateTime(generatedField.value.trim());
-              if (userEndTime <= startJst) {
-                // 終了時刻が開始時刻以前の場合、自動で+1時間に修正
-                endJst = new Date(startJst.getTime() + 60 * 60 * 1000);
-                generatedField.value = formatDateTime(endJst);
-                const timeRangeField = document.getElementById('timeRange');
-                timeRangeField.value = '1:00:00';
-                localStorage.setItem('mastodon-timeRangeInput', '1:00:00');
-                showError('終了時刻が開始時刻より早いため、自動で1時間後に設定しました');
-              } else {
-                endJst = userEndTime;
-              }
+              const adjustedTimes = adjustTimeRange(startJst, userEndTime, startField, generatedField, 'mastodon-userTime');
+              timeFilter = { start: adjustedTimes.start, end: adjustedTimes.end };
             } catch (e) {
               // パース失敗時はtimeRangeInputを使用
               endJst = parseAndAddTime(startJst, timeRangeInput);
+              timeFilter = { start: startJst, end: endJst };
             }
           } else {
             endJst = parseAndAddTime(startJst, timeRangeInput);
+            // マイナス値の場合の処理
+            if (endJst <= startJst) {
+              const adjustedTimes = adjustTimeRange(startJst, endJst, startField, generatedField, 'mastodon-userTime');
+              timeFilter = { start: adjustedTimes.start, end: adjustedTimes.end };
+            } else {
+              timeFilter = { start: startJst, end: endJst };
+            }
           }
-          
-          timeFilter = { start: startJst, end: endJst };
         }
 
         const posts = await fetchUserPosts(cleanUsername, timeFilter);
@@ -500,35 +522,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 範囲設定: 指定時間から時間範囲入力で指定した時間後まで
         const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
-        
-        // 終了時刻フィールドから終了時刻を取得して検証
+
+        // 終了時刻フィールドから終了時刻を取得して検証・入れ替え
         const generatedField = document.getElementById('generatedTime');
-        let endJst;
-        
+        let finalStartTime = startJst;
+        let finalEndTime;
+
         if (generatedField && generatedField.value.trim()) {
           try {
             const userEndTime = parseDateTime(generatedField.value.trim());
-            if (userEndTime <= startJst) {
-              // 終了時刻が開始時刻以前の場合、自動で+1時間に修正
-              endJst = new Date(startJst.getTime() + 60 * 60 * 1000);
-              generatedField.value = formatDateTime(endJst);
-              const timeRangeField = document.getElementById('timeRange');
-              timeRangeField.value = '1:00:00';
-              localStorage.setItem('mastodon-timeRangeInput', '1:00:00');
-              showError('終了時刻が開始時刻より早いため、自動で1時間後に設定しました');
-            } else {
-              endJst = userEndTime;
-            }
+            const adjustedTimes = adjustTimeRange(startJst, userEndTime, inputField, generatedField, 'mastodon-timeRange');
+            finalStartTime = adjustedTimes.start;
+            finalEndTime = adjustedTimes.end;
           } catch (e) {
             // パース失敗時はtimeRangeInputを使用
-            endJst = parseAndAddTime(startJst, timeRangeInput);
+            finalEndTime = parseAndAddTime(startJst, timeRangeInput);
           }
         } else {
-          endJst = parseAndAddTime(startJst, timeRangeInput);
+          finalEndTime = parseAndAddTime(startJst, timeRangeInput);
+          // マイナス値の場合の処理
+          if (finalEndTime <= startJst) {
+            const adjustedTimes = adjustTimeRange(startJst, finalEndTime, inputField, generatedField, 'mastodon-timeRange');
+            finalStartTime = adjustedTimes.start;
+            finalEndTime = adjustedTimes.end;
+            // 生成された範囲フィールドも更新
+            generatedField.value = formatDateTime(finalEndTime);
+          }
         }
 
-        const startId = generateSnowflakeIdFromJst(startJst);
-        const endId = generateSnowflakeIdFromJst(endJst);
+        const startId = generateSnowflakeIdFromJst(finalStartTime);
+        const endId = generateSnowflakeIdFromJst(finalEndTime);
         const posts = await fetchPublicTimelineInRange(startId, endId);
         displayPosts(posts);
       }
