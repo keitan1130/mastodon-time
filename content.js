@@ -75,7 +75,7 @@ function injectMastodonViewer() {
 
       <div id="mastodonTimeInput" class="mastodon-input-group" style="display: none;">
         <label for="mastodonTimeField">時間:</label>
-        <input type="text" id="mastodonTimeField" placeholder="YYYY-MM-DD HH または YYYY/MM/DD HH">
+        <input type="text" id="mastodonTimeField" placeholder="YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS">
       </div>
 
       <div id="mastodonTimeRangeSelector" class="mastodon-input-group">
@@ -216,7 +216,7 @@ function updateInputUI() {
       const hour = String(now.getHours()).padStart(2, '0');
       mainInputField.value = `${year}-${month}-${day} ${hour}`;
     }
-    mainInputField.placeholder = 'YYYY-MM-DD HH または YYYY/MM/DD HH';
+    mainInputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS';
     timeRangeSelector.style.display = 'block';
   }
 
@@ -280,24 +280,29 @@ async function handleSearch() {
 
       let timeFilter = null;
       if (timeInput) {
-        // 2025-11-30 10 または 2025/11/30 10 形式をサポート
-        const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
-        if (!timeMatch) throw new Error('時間は YYYY-MM-DD HH または YYYY/MM/DD HH の形式で入力してください');
+        // 様々な形式をサポート: YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
+        // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
+        const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+        if (!timeMatch) throw new Error('時間は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS の形式で入力してください');
 
         const datePart = timeMatch[1];
         let Y, Mo, D;
-        
+
         if (datePart.includes('-')) {
           [Y, Mo, D] = datePart.split('-').map(Number);
         } else {
           [Y, Mo, D] = datePart.split('/').map(Number);
         }
-        const hh = Number(timeMatch[2]);
+        
+        // 時分秒の処理（未指定の場合は0）
+        const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+        const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+        const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
         const timeRangeSelect = document.getElementById('mastodonTimeRange');
         const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
 
-        const startJst = new Date(Y, Mo-1, D, hh, 0, 0, 0);
-        const endJst = new Date(Y, Mo-1, D, hh + rangeHours, 0, 0, 0);
+        const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
+        const endJst = new Date(Y, Mo-1, D, hh + rangeHours, mm, ss, 0);
         timeFilter = { start: startJst, end: endJst };
       }
 
@@ -307,24 +312,29 @@ async function handleSearch() {
       const raw = document.getElementById('mastodonPostIdOrTime').value.trim();
       if (!raw) throw new Error('時間を入力してください');
 
-      // 2025-11-30 10 または 2025/11/30 10 形式をサポート
-      const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
-      if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD HH または YYYY/MM/DD HH です');
+      // 様々な形式をサポート: YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
+      // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
+      const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+      if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS です');
 
       const datePart = timeMatch[1];
       let Y, Mo, D;
-      
+
       if (datePart.includes('-')) {
         [Y, Mo, D] = datePart.split('-').map(Number);
       } else {
         [Y, Mo, D] = datePart.split('/').map(Number);
       }
-      const hh = Number(timeMatch[2]);
+      
+      // 時分秒の処理（未指定の場合は0）
+      const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+      const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+      const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
       const timeRangeSelect = document.getElementById('mastodonTimeRange');
       const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
 
-      const startJst = new Date(Y, Mo-1, D, hh, 0, 0, 0);
-      const endJst = new Date(Y, Mo-1, D, hh + rangeHours, 0, 0, 0);
+      const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
+      const endJst = new Date(Y, Mo-1, D, hh + rangeHours, mm, ss, 0);
 
       const startId = generateSnowflakeIdFromJst(startJst);
       const endId = generateSnowflakeIdFromJst(endJst);

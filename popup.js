@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hour = String(now.getHours()).padStart(2, '0');
         inputField.value = `${year}-${month}-${day} ${hour}`;
       }
-      inputField.placeholder = 'YYYY-MM-DD HH または YYYY/MM/DD HH';
+      inputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS';
       if (timeRangeSelector) timeRangeSelector.style.display = 'block';
     }
 
@@ -194,24 +194,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let timeFilter = null;
         if (timeInput) {
-          // 時間が指定されている場合: 2025-11-30 10 または 2025/11/30 10 形式をサポート
-          const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
-          if (!timeMatch) throw new Error('時間は YYYY-MM-DD HH または YYYY/MM/DD HH の形式で入力してください');
+          // 時間が指定されている場合: 様々な形式をサポート
+          // YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
+          // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
+          const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+          if (!timeMatch) throw new Error('時間は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS の形式で入力してください');
 
           const datePart = timeMatch[1];
           let Y, Mo, D;
-          
+
           if (datePart.includes('-')) {
             [Y, Mo, D] = datePart.split('-').map(Number);
           } else {
             [Y, Mo, D] = datePart.split('/').map(Number);
           }
-          const hh = Number(timeMatch[2]);
+          
+          // 時分秒の処理（未指定の場合は0）
+          const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+          const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+          const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
           const timeRangeSelect = document.getElementById('timeRange');
           const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
 
-          const startJst = new Date(Y, Mo-1, D, hh, 0, 0, 0);
-          const endJst = new Date(Y, Mo-1, D, hh + rangeHours, 0, 0, 0);
+          const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
+          const endJst = new Date(Y, Mo-1, D, hh + rangeHours, mm, ss, 0);
           timeFilter = { start: startJst, end: endJst };
         }
 
@@ -222,25 +228,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const raw = inputField.value.trim();
         if (!raw) return showError('時間を入力してください');
 
-        // 時間範囲検索: 2025-11-30 10 または 2025/11/30 10 形式をサポート
-        const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})[ T](\d{2})$/);
-        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD HH または YYYY/MM/DD HH です');
+        // 時間範囲検索: 様々な形式をサポート
+        // YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
+        // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
+        const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS です');
 
         const datePart = timeMatch[1];
         let Y, Mo, D;
-        
+
         if (datePart.includes('-')) {
           [Y, Mo, D] = datePart.split('-').map(Number);
         } else {
           [Y, Mo, D] = datePart.split('/').map(Number);
         }
-        const hh = Number(timeMatch[2]);
+        
+        // 時分秒の処理（未指定の場合は0）
+        const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+        const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+        const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
         const timeRangeSelect = document.getElementById('timeRange');
         const rangeHours = timeRangeSelect ? Number(timeRangeSelect.value) : 1;
 
         // 範囲設定: 指定時間から選択した時間数後まで
-        const startJst = new Date(Y, Mo-1, D, hh, 0, 0, 0);
-        const endJst = new Date(Y, Mo-1, D, hh + rangeHours, 0, 0, 0);
+        const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
+        const endJst = new Date(Y, Mo-1, D, hh + rangeHours, mm, ss, 0);
 
         const startId = generateSnowflakeIdFromJst(startJst);
         const endId = generateSnowflakeIdFromJst(endJst);
