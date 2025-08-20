@@ -176,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // 終了時刻が空の場合は時間範囲もクリア
       timeRangeField.value = '';
       localStorage.removeItem('mastodon-timeRangeInput');
+      clearTimeInputError(generatedField);
       return;
     }
 
@@ -196,19 +197,14 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       if (!startTime) {
-        // 開始時刻が設定されていない場合
+        // 開始時刻が設定されていない場合 - エラー表示のみ
         showTimeInputError(generatedField, '開始時刻を先に入力してください');
         return;
       }
 
       if (endTime <= startTime) {
-        // 終了時刻が開始時刻以前の場合
+        // 終了時刻が開始時刻以前の場合 - エラー表示のみ、自動修正しない
         showTimeInputError(generatedField, '終了時刻は開始時刻より後にしてください');
-        // 適切な終了時刻を自動設定（開始時刻 + 1時間）
-        const defaultEndTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-        generatedField.value = formatDateTime(defaultEndTime);
-        timeRangeField.value = '1:00:00';
-        localStorage.setItem('mastodon-timeRangeInput', '1:00:00');
         return;
       }
 
@@ -218,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
 
-      // 24時間を超える場合は警告
+      // 24時間を超える場合は警告（自動修正しない）
       if (diffHours >= 24) {
         showTimeInputError(generatedField, '時間範囲が24時間を超えています');
       }
@@ -227,11 +223,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const timeRangeStr = `${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
       timeRangeField.value = timeRangeStr;
       localStorage.setItem('mastodon-timeRangeInput', timeRangeStr);
-      
+
       // エラー表示をクリア
       clearTimeInputError(generatedField);
     } catch (e) {
-      // 日時形式エラーの場合
+      // 日時形式エラーの場合 - エラー表示のみ
       showTimeInputError(generatedField, '日時形式が正しくありません（例：2024-01-01 12:00:00）');
       console.warn('時間範囲の逆算でエラー:', e);
     }
@@ -241,19 +237,19 @@ document.addEventListener('DOMContentLoaded', function() {
   function showTimeInputError(inputElement, message) {
     // 既存のエラーメッセージを削除
     clearTimeInputError(inputElement);
-    
+
     // エラーメッセージ要素を作成
     const errorDiv = document.createElement('div');
     errorDiv.className = 'mastodon-time-input-error';
     errorDiv.textContent = message;
-    
+
     // 入力フィールドを一時的に赤くハイライト
     inputElement.style.borderColor = '#ff6b6b';
     inputElement.style.boxShadow = '0 0 3px rgba(255, 107, 107, 0.5)';
-    
+
     // エラーメッセージを挿入
     inputElement.parentNode.insertBefore(errorDiv, inputElement.nextSibling);
-    
+
     // 3秒後にエラー表示をクリア
     setTimeout(() => {
       clearTimeInputError(inputElement);
@@ -266,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (errorDiv) {
       errorDiv.remove();
     }
-    
+
     // ハイライトをクリア
     inputElement.style.borderColor = '';
     inputElement.style.boxShadow = '';
@@ -442,7 +438,33 @@ document.addEventListener('DOMContentLoaded', function() {
           const timeRangeInput = timeRangeSelect ? timeRangeSelect.value.trim() : '1:00:00';
 
           const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
-          const endJst = parseAndAddTime(startJst, timeRangeInput);
+          
+          // 終了時刻フィールドから終了時刻を取得して検証
+          const generatedField = document.getElementById('generatedTime');
+          let endJst;
+          
+          if (generatedField && generatedField.value.trim()) {
+            try {
+              const userEndTime = parseDateTime(generatedField.value.trim());
+              if (userEndTime <= startJst) {
+                // 終了時刻が開始時刻以前の場合、自動で+1時間に修正
+                endJst = new Date(startJst.getTime() + 60 * 60 * 1000);
+                generatedField.value = formatDateTime(endJst);
+                const timeRangeField = document.getElementById('timeRange');
+                timeRangeField.value = '1:00:00';
+                localStorage.setItem('mastodon-timeRangeInput', '1:00:00');
+                showError('終了時刻が開始時刻より早いため、自動で1時間後に設定しました');
+              } else {
+                endJst = userEndTime;
+              }
+            } catch (e) {
+              // パース失敗時はtimeRangeInputを使用
+              endJst = parseAndAddTime(startJst, timeRangeInput);
+            }
+          } else {
+            endJst = parseAndAddTime(startJst, timeRangeInput);
+          }
+          
           timeFilter = { start: startJst, end: endJst };
         }
 
@@ -478,7 +500,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 範囲設定: 指定時間から時間範囲入力で指定した時間後まで
         const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
-        const endJst = parseAndAddTime(startJst, timeRangeInput);
+        
+        // 終了時刻フィールドから終了時刻を取得して検証
+        const generatedField = document.getElementById('generatedTime');
+        let endJst;
+        
+        if (generatedField && generatedField.value.trim()) {
+          try {
+            const userEndTime = parseDateTime(generatedField.value.trim());
+            if (userEndTime <= startJst) {
+              // 終了時刻が開始時刻以前の場合、自動で+1時間に修正
+              endJst = new Date(startJst.getTime() + 60 * 60 * 1000);
+              generatedField.value = formatDateTime(endJst);
+              const timeRangeField = document.getElementById('timeRange');
+              timeRangeField.value = '1:00:00';
+              localStorage.setItem('mastodon-timeRangeInput', '1:00:00');
+              showError('終了時刻が開始時刻より早いため、自動で1時間後に設定しました');
+            } else {
+              endJst = userEndTime;
+            }
+          } catch (e) {
+            // パース失敗時はtimeRangeInputを使用
+            endJst = parseAndAddTime(startJst, timeRangeInput);
+          }
+        } else {
+          endJst = parseAndAddTime(startJst, timeRangeInput);
+        }
 
         const startId = generateSnowflakeIdFromJst(startJst);
         const endId = generateSnowflakeIdFromJst(endJst);
