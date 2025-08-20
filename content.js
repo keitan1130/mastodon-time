@@ -75,7 +75,7 @@ function injectMastodonViewer() {
 
       <div id="mastodonTimeInput" class="mastodon-input-group" style="display: none;">
         <label for="mastodonTimeField">時間:</label>
-        <input type="text" id="mastodonTimeField" placeholder="YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS">
+        <input type="text" id="mastodonTimeField" placeholder="YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS">
       </div>
 
       <div id="mastodonTimeRangeSelector" class="mastodon-input-group">
@@ -216,7 +216,7 @@ function updateInputUI() {
       const hour = String(now.getHours()).padStart(2, '0');
       mainInputField.value = `${year}-${month}-${day} ${hour}`;
     }
-    mainInputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS';
+    mainInputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS';
     timeRangeSelector.style.display = 'block';
   }
 
@@ -282,8 +282,9 @@ async function handleSearch() {
       if (timeInput) {
         // 様々な形式をサポート: YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
         // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
-        const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
-        if (!timeMatch) throw new Error('時間は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS の形式で入力してください');
+        // 1桁の月日にも対応: YYYY/M/D H:MM:SS
+        const timeMatch = timeInput.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+        if (!timeMatch) throw new Error('時間は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS の形式で入力してください');
 
         const datePart = timeMatch[1];
         let Y, Mo, D;
@@ -293,7 +294,7 @@ async function handleSearch() {
         } else {
           [Y, Mo, D] = datePart.split('/').map(Number);
         }
-        
+
         // 時分秒の処理（未指定の場合は0）
         const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
         const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
@@ -314,8 +315,9 @@ async function handleSearch() {
 
       // 様々な形式をサポート: YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
       // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
-      const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
-      if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS です');
+      // 1桁の月日にも対応: YYYY/M/D H:MM:SS
+      const timeMatch = raw.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+      if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS です');
 
       const datePart = timeMatch[1];
       let Y, Mo, D;
@@ -325,7 +327,7 @@ async function handleSearch() {
       } else {
         [Y, Mo, D] = datePart.split('/').map(Number);
       }
-      
+
       // 時分秒の処理（未指定の場合は0）
       const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
       const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;

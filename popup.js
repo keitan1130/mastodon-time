@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const hour = String(now.getHours()).padStart(2, '0');
         inputField.value = `${year}-${month}-${day} ${hour}`;
       }
-      inputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS';
+      inputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS';
       if (timeRangeSelector) timeRangeSelector.style.display = 'block';
     }
 
@@ -197,8 +197,9 @@ document.addEventListener('DOMContentLoaded', function() {
           // 時間が指定されている場合: 様々な形式をサポート
           // YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
           // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
-          const timeMatch = timeInput.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
-          if (!timeMatch) throw new Error('時間は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS の形式で入力してください');
+          // 1桁の月日にも対応: YYYY/M/D H:MM:SS
+          const timeMatch = timeInput.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+          if (!timeMatch) throw new Error('時間は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS の形式で入力してください');
 
           const datePart = timeMatch[1];
           let Y, Mo, D;
@@ -208,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             [Y, Mo, D] = datePart.split('/').map(Number);
           }
-          
+
           // 時分秒の処理（未指定の場合は0）
           const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
           const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
@@ -231,8 +232,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // 時間範囲検索: 様々な形式をサポート
         // YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
         // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
-        const timeMatch = raw.match(/^(\d{4}[-/]\d{2}[-/]\d{2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
-        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/MM/DD HH:MM:SS です');
+        // 1桁の月日にも対応: YYYY/M/D H:MM:SS
+        const timeMatch = raw.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS です');
 
         const datePart = timeMatch[1];
         let Y, Mo, D;
@@ -242,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           [Y, Mo, D] = datePart.split('/').map(Number);
         }
-        
+
         // 時分秒の処理（未指定の場合は0）
         const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
         const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
