@@ -73,32 +73,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // 編集ボタンのイベントリスナー
-  const editButton = document.getElementById('editTimeRange');
-  if (editButton) {
-    editButton.addEventListener('click', function() {
-      const generatedField = document.getElementById('generatedTime');
-      if (generatedField) {
-        generatedField.readOnly = !generatedField.readOnly;
-        generatedField.style.background = generatedField.readOnly ? '#f0f0f0' : '#fff';
-        this.textContent = generatedField.readOnly ? '編集' : '確定';
-      }
+    // 終了時刻（生成された範囲）フィールドの変更で時間範囲を逆算
+  const generatedTimeField = document.getElementById('generatedTime');
+  if (generatedTimeField) {
+    generatedTimeField.addEventListener('input', function() {
+      updateTimeRangeFromEndTime();
     });
   }
 
   function updateGeneratedTimeRange() {
     const type = document.querySelector('input[name="inputType"]:checked').value;
     const generatedField = document.getElementById('generatedTime');
-    
+
     if (type === 'user') {
       const dateTimeInput = document.getElementById('timeField').value.trim();
       const timeRangeInput = document.getElementById('timeRange').value.trim();
-      
+
       if (dateTimeInput && timeRangeInput) {
         try {
           const startTime = parseDateTime(dateTimeInput);
           const endTime = parseAndAddTime(startTime, timeRangeInput);
-          generatedField.value = `${formatDateTime(startTime)} ～ ${formatDateTime(endTime)}`;
+          generatedField.value = formatDateTime(endTime);
         } catch (e) {
           generatedField.value = 'エラー: 時間形式を確認してください';
         }
@@ -106,12 +101,12 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (type === 'time') {
       const dateTimeInput = inputField.value.trim();
       const timeRangeInput = document.getElementById('timeRange').value.trim();
-      
+
       if (dateTimeInput && timeRangeInput) {
         try {
           const startTime = parseDateTime(dateTimeInput);
           const endTime = parseAndAddTime(startTime, timeRangeInput);
-          generatedField.value = `${formatDateTime(startTime)} ～ ${formatDateTime(endTime)}`;
+          generatedField.value = formatDateTime(endTime);
         } catch (e) {
           generatedField.value = 'エラー: 時間形式を確認してください';
         }
@@ -125,13 +120,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const datePart = timeMatch[1];
     let Y, Mo, D;
-    
+
     if (datePart.includes('-')) {
       [Y, Mo, D] = datePart.split('-').map(Number);
     } else {
       [Y, Mo, D] = datePart.split('/').map(Number);
     }
-    
+
     const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
     const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
     const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
@@ -142,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function parseAndAddTime(startDate, timeInput) {
     // 10 → 10:00:00, 10:30 → 10:30:00, 10:30:20 → 10:30:20 の形式を解析
     let hh = 0, mm = 0, ss = 0;
-    
+
     if (timeInput.includes(':')) {
       const parts = timeInput.split(':');
       hh = Number(parts[0]) || 0;
@@ -157,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
     endDate.setHours(startDate.getHours() + hh);
     endDate.setMinutes(startDate.getMinutes() + mm);
     endDate.setSeconds(startDate.getSeconds() + ss);
-    
+
     return endDate;
   }
 
@@ -168,8 +163,49 @@ document.addEventListener('DOMContentLoaded', function() {
     const H = String(date.getHours()).padStart(2, '0');
     const Min = String(date.getMinutes()).padStart(2, '0');
     const S = String(date.getSeconds()).padStart(2, '0');
-    
+
     return `${Y}-${M}-${D} ${H}:${Min}:${S}`;
+  }
+
+  function updateTimeRangeFromEndTime() {
+    const type = document.querySelector('input[name="inputType"]:checked').value;
+    const generatedField = document.getElementById('generatedTime');
+    const timeRangeField = document.getElementById('timeRange');
+
+    if (!generatedField.value.trim()) return;
+
+    try {
+      const endTime = parseDateTime(generatedField.value.trim());
+      let startTime;
+
+      if (type === 'user') {
+        const dateTimeInput = document.getElementById('timeField').value.trim();
+        if (dateTimeInput) {
+          startTime = parseDateTime(dateTimeInput);
+        }
+      } else if (type === 'time') {
+        const dateTimeInput = inputField.value.trim();
+        if (dateTimeInput) {
+          startTime = parseDateTime(dateTimeInput);
+        }
+      }
+
+      if (startTime && endTime > startTime) {
+        // 時間差を計算
+        const diffMs = endTime.getTime() - startTime.getTime();
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+        // HH:MM:SS 形式で設定
+        const timeRangeStr = `${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
+        timeRangeField.value = timeRangeStr;
+        localStorage.setItem('mastodon-timeRangeInput', timeRangeStr);
+      }
+    } catch (e) {
+      // エラーの場合は何もしない
+      console.warn('時間範囲の逆算でエラー:', e);
+    }
   }
 
   function updateInputUI() {
@@ -229,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
           timeRangeSelect.value = '1:00:00'; // デフォルト値
         }
       }
-      
+
       updateGeneratedTimeRange();
     } else {
       // 時間範囲検索
@@ -260,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
           timeRangeSelect.value = '1:00:00'; // デフォルト値
         }
       }
-      
+
       updateGeneratedTimeRange();
     }
 

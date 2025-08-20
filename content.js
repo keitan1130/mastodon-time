@@ -85,9 +85,8 @@ function injectMastodonViewer() {
       </div>
 
       <div id="mastodonGeneratedTimeDisplay" class="mastodon-input-group">
-        <label for="mastodonGeneratedTime">生成された範囲:</label>
-        <input type="text" id="mastodonGeneratedTime" placeholder="編集可能" style="width: 100%; background: #f0f0f0;" readonly>
-        <button id="mastodonEditTimeRange" style="margin-top: 5px; padding: 2px 8px; font-size: 12px;">編集</button>
+        <label for="mastodonGeneratedTime">終了時刻（編集可能）:</label>
+        <input type="text" id="mastodonGeneratedTime" placeholder="YYYY-MM-DD HH:MM:SS" style="width: 100%;">
       </div>
 
       <button id="mastodonFetchPost" class="mastodon-fetch-btn">取得</button>
@@ -166,12 +165,9 @@ function setupEventListeners() {
     updateGeneratedTimeRange();
   });
 
-  // 編集ボタンのイベントリスナー
-  document.getElementById('mastodonEditTimeRange').addEventListener('click', function() {
-    const generatedField = document.getElementById('mastodonGeneratedTime');
-    generatedField.readOnly = !generatedField.readOnly;
-    generatedField.style.background = generatedField.readOnly ? '#f0f0f0' : '#fff';
-    this.textContent = generatedField.readOnly ? '編集' : '確定';
+  // 終了時刻（生成された範囲）フィールドの変更で時間範囲を逆算
+  document.getElementById('mastodonGeneratedTime').addEventListener('input', function() {
+    updateTimeRangeFromEndTime();
   });
 
   // 検索ボタン
@@ -183,16 +179,16 @@ function setupEventListeners() {
 function updateGeneratedTimeRange() {
   const type = document.querySelector('input[name="mastodonInputType"]:checked').value;
   const generatedField = document.getElementById('mastodonGeneratedTime');
-  
+
   if (type === 'user') {
     const dateTimeInput = document.getElementById('mastodonTimeField').value.trim();
     const timeRangeInput = document.getElementById('mastodonTimeRange').value.trim();
-    
+
     if (dateTimeInput && timeRangeInput) {
       try {
         const startTime = parseDateTime(dateTimeInput);
         const endTime = parseAndAddTime(startTime, timeRangeInput);
-        generatedField.value = `${formatDateTime(startTime)} ～ ${formatDateTime(endTime)}`;
+        generatedField.value = formatDateTime(endTime);
       } catch (e) {
         generatedField.value = 'エラー: 時間形式を確認してください';
       }
@@ -200,12 +196,12 @@ function updateGeneratedTimeRange() {
   } else if (type === 'time') {
     const dateTimeInput = document.getElementById('mastodonPostIdOrTime').value.trim();
     const timeRangeInput = document.getElementById('mastodonTimeRange').value.trim();
-    
+
     if (dateTimeInput && timeRangeInput) {
       try {
         const startTime = parseDateTime(dateTimeInput);
         const endTime = parseAndAddTime(startTime, timeRangeInput);
-        generatedField.value = `${formatDateTime(startTime)} ～ ${formatDateTime(endTime)}`;
+        generatedField.value = formatDateTime(endTime);
       } catch (e) {
         generatedField.value = 'エラー: 時間形式を確認してください';
       }
@@ -219,13 +215,13 @@ function parseDateTime(input) {
 
   const datePart = timeMatch[1];
   let Y, Mo, D;
-  
+
   if (datePart.includes('-')) {
     [Y, Mo, D] = datePart.split('-').map(Number);
   } else {
     [Y, Mo, D] = datePart.split('/').map(Number);
   }
-  
+
   const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
   const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
   const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
@@ -236,7 +232,7 @@ function parseDateTime(input) {
 function parseAndAddTime(startDate, timeInput) {
   // 10 → 10:00:00, 10:30 → 10:30:00, 10:30:20 → 10:30:20 の形式を解析
   let hh = 0, mm = 0, ss = 0;
-  
+
   if (timeInput.includes(':')) {
     const parts = timeInput.split(':');
     hh = Number(parts[0]) || 0;
@@ -251,7 +247,7 @@ function parseAndAddTime(startDate, timeInput) {
   endDate.setHours(startDate.getHours() + hh);
   endDate.setMinutes(startDate.getMinutes() + mm);
   endDate.setSeconds(startDate.getSeconds() + ss);
-  
+
   return endDate;
 }
 
@@ -262,8 +258,49 @@ function formatDateTime(date) {
   const H = String(date.getHours()).padStart(2, '0');
   const Min = String(date.getMinutes()).padStart(2, '0');
   const S = String(date.getSeconds()).padStart(2, '0');
-  
+
   return `${Y}-${M}-${D} ${H}:${Min}:${S}`;
+}
+
+function updateTimeRangeFromEndTime() {
+  const type = document.querySelector('input[name="mastodonInputType"]:checked').value;
+  const generatedField = document.getElementById('mastodonGeneratedTime');
+  const timeRangeField = document.getElementById('mastodonTimeRange');
+
+  if (!generatedField.value.trim()) return;
+
+  try {
+    const endTime = parseDateTime(generatedField.value.trim());
+    let startTime;
+
+    if (type === 'user') {
+      const dateTimeInput = document.getElementById('mastodonTimeField').value.trim();
+      if (dateTimeInput) {
+        startTime = parseDateTime(dateTimeInput);
+      }
+    } else if (type === 'time') {
+      const dateTimeInput = document.getElementById('mastodonPostIdOrTime').value.trim();
+      if (dateTimeInput) {
+        startTime = parseDateTime(dateTimeInput);
+      }
+    }
+
+    if (startTime && endTime > startTime) {
+      // 時間差を計算
+      const diffMs = endTime.getTime() - startTime.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+      // HH:MM:SS 形式で設定
+      const timeRangeStr = `${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
+      timeRangeField.value = timeRangeStr;
+      localStorage.setItem('mastodon-content-timeRangeInput', timeRangeStr);
+    }
+  } catch (e) {
+    // エラーの場合は何もしない
+    console.warn('時間範囲の逆算でエラー:', e);
+  }
 }
 
 function updateInputUI() {
@@ -310,7 +347,7 @@ function updateInputUI() {
 
     timeRangeSelector.style.display = 'block';
     generatedTimeDisplay.style.display = 'block';
-    
+
     // 保存されたtimeRange値を復元
     const savedTimeRangeInput = localStorage.getItem('mastodon-content-timeRangeInput');
     if (savedTimeRangeInput) {
@@ -318,7 +355,7 @@ function updateInputUI() {
     } else {
       timeRangeSelect.value = '1:00:00'; // デフォルト値
     }
-    
+
     updateGeneratedTimeRange();
   } else {
     mainInput.style.display = 'block';
@@ -336,7 +373,7 @@ function updateInputUI() {
     mainInputField.placeholder = 'YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS';
     timeRangeSelector.style.display = 'block';
     generatedTimeDisplay.style.display = 'block';
-    
+
     // 保存されたtimeRange値を復元
     const savedTimeRangeInput = localStorage.getItem('mastodon-content-timeRangeInput');
     if (savedTimeRangeInput) {
@@ -344,7 +381,7 @@ function updateInputUI() {
     } else {
       timeRangeSelect.value = '1:00:00'; // デフォルト値
     }
-    
+
     updateGeneratedTimeRange();
   }
 

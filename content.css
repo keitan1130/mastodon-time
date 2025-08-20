@@ -172,24 +172,24 @@
 /* 時間範囲生成表示エリアのスタイル */
 .mastodon-input-group #mastodonGeneratedTime,
 .mastodon-input-group #generatedTime {
-  background: #0f1117;
   border: 1px solid #393f4f;
   color: #9baec8;
   font-size: 13px;
   margin-bottom: 4px;
+  transition: all 0.2s ease;
 }
 
 .mastodon-input-group #mastodonGeneratedTime[readonly],
 .mastodon-input-group #generatedTime[readonly] {
-  background: #191b22;
-  color: #9baec8;
+  background: #191b22 !important;
+  color: #9baec8 !important;
   cursor: default;
 }
 
 .mastodon-input-group #mastodonGeneratedTime:not([readonly]),
 .mastodon-input-group #generatedTime:not([readonly]) {
-  background: #0f1117;
-  color: #fff;
+  background: #0f1117 !important;
+  color: #fff !important;
 }
 
 /* 編集ボタンのスタイル */
@@ -437,14 +437,14 @@
 
   .mastodon-input-group #mastodonGeneratedTime[readonly],
   .mastodon-input-group #generatedTime[readonly] {
-    background: #0d0f14;
-    color: #9baec8;
+    background: #0d0f14 !important;
+    color: #9baec8 !important;
   }
 
   .mastodon-input-group #mastodonGeneratedTime:not([readonly]),
   .mastodon-input-group #generatedTime:not([readonly]) {
-    background: #0f1117;
-    color: #fff;
+    background: #0f1117 !important;
+    color: #fff !important;
   }
 }
 
