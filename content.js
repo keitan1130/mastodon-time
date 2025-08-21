@@ -65,6 +65,7 @@ function injectMastodonViewer() {
       </div>
 
       <div id="mastodon-main-input" class="mastodon-input-group">
+        <label for="mastodonPostIdOrTime">開始時刻:</label>
         <input type="text" id="mastodonPostIdOrTime" placeholder="入力してください">
       </div>
 
@@ -442,6 +443,12 @@ function updateInputUI() {
     mainInput.style.display = 'block';
     mainInputField.value = localStorage.getItem('mastodon-content-postId') || '114914719105992385';
     mainInputField.placeholder = '投稿ID';
+
+    // ラベルを変更
+    const mainInputLabel = document.querySelector('label[for="mastodonPostIdOrTime"]');
+    if (mainInputLabel) {
+      mainInputLabel.textContent = '投稿ID:';
+    }
   } else if (type === 'user') {
     userInput.style.display = 'block';
     timeInput.style.display = 'block';
@@ -472,7 +479,16 @@ function updateInputUI() {
     updateSearchModeUI();
     updateGeneratedTimeRange();
   } else {
+    // パブリック（time）モード
     mainInput.style.display = 'block';
+    searchModeSelector.style.display = 'block';
+
+    // ラベルを変更
+    const mainInputLabel = document.querySelector('label[for="mastodonPostIdOrTime"]');
+    if (mainInputLabel) {
+      mainInputLabel.textContent = '開始時刻:';
+    }
+
     const savedTimeRange = localStorage.getItem('mastodon-content-timeRange');
     if (savedTimeRange) {
       mainInputField.value = savedTimeRange;
@@ -485,8 +501,6 @@ function updateInputUI() {
       mainInputField.value = `${year}-${month}-${day} ${hour}`;
     }
     mainInputField.placeholder = 'YYYY/M/D H:MM:SS';
-    timeRangeSelector.style.display = 'block';
-    generatedTimeDisplay.style.display = 'block';
 
     // 保存されたtimeRange値を復元
     const savedTimeRangeInput = localStorage.getItem('mastodon-content-timeRangeInput');
@@ -496,6 +510,7 @@ function updateInputUI() {
       timeRangeSelect.value = '1:00:00'; // デフォルト値
     }
 
+    updateSearchModeUI();
     updateGeneratedTimeRange();
   }
 
@@ -621,64 +636,93 @@ async function handleSearch() {
       const posts = await fetchUserPosts(cleanUsername, fetchOptions);
       displayPosts(posts);
     } else if (type === 'time') {
-      // 時間範囲指定モード
+      // パブリック（時間）モード
       const raw = document.getElementById('mastodonPostIdOrTime').value.trim();
-      if (!raw) throw new Error('時間を入力してください');
+      const searchMode = document.querySelector('input[name="mastodonSearchMode"]:checked').value;
 
-      // 様々な形式をサポート: YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
-      // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
-      // 1桁の月日にも対応: YYYY/M/D H:MM:SS
-      const timeMatch = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
-      if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS です');
-
-      const Y = Number(timeMatch[1]);
-      const Mo = Number(timeMatch[2]);
-      const D = Number(timeMatch[3]);
-      const hh = timeMatch[4] ? Number(timeMatch[4]) : 0;
-      const mm = timeMatch[5] ? Number(timeMatch[5]) : 0;
-      const ss = timeMatch[6] ? Number(timeMatch[6]) : 0;
-
-      const timeRangeSelect = document.getElementById('mastodonTimeRange');
-      const timeRangeInput = timeRangeSelect ? timeRangeSelect.value.trim() : '1:00:00';
-
-      const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
-
-      // 終了時刻フィールドから終了時刻を取得して検証・入れ替え
-      const generatedField = document.getElementById('mastodonGeneratedTime');
-      let endJst;
-      let finalStartTime = startJst;
-      let finalEndTime;
-
-      if (generatedField && generatedField.value.trim()) {
-        try {
-          const userEndTime = parseDateTime(generatedField.value.trim());
-          const adjustedTimes = adjustTimeRange(startJst, userEndTime,
-            document.getElementById('mastodonPostIdOrTime'), generatedField, 'mastodon-content-timeRange');
-          finalStartTime = adjustedTimes.start;
-          finalEndTime = adjustedTimes.end;
-        } catch (e) {
-          // パース失敗時はtimeRangeInputを使用
-          finalEndTime = parseAndAddTime(startJst, timeRangeInput);
+      if (searchMode === 'postCount') {
+        // 投稿件数指定モード
+        const postCountInput = parseInt(document.getElementById('mastodonPostCount').value) || 200;
+        if (Math.abs(postCountInput) < 1 || Math.abs(postCountInput) > 10000) {
+          throw new Error('投稿件数は-10000から10000の範囲で入力してください（0以外）');
         }
-      } else {
-        finalEndTime = parseAndAddTime(startJst, timeRangeInput);
-        // マイナス値の場合の処理
-        if (finalEndTime <= startJst) {
-          const adjustedTimes = adjustTimeRange(startJst, finalEndTime,
-            document.getElementById('mastodonPostIdOrTime'), generatedField, 'mastodon-content-timeRange');
-          finalStartTime = adjustedTimes.start;
-          finalEndTime = adjustedTimes.end;
-          // 生成された範囲フィールドも更新
-          if (generatedField) {
-            generatedField.value = formatDateTime(finalEndTime);
+
+        let startTime = null;
+        if (raw) {
+          const timeMatch = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+          if (timeMatch) {
+            const Y = Number(timeMatch[1]);
+            const Mo = Number(timeMatch[2]);
+            const D = Number(timeMatch[3]);
+            const hh = timeMatch[4] ? Number(timeMatch[4]) : 0;
+            const mm = timeMatch[5] ? Number(timeMatch[5]) : 0;
+            const ss = timeMatch[6] ? Number(timeMatch[6]) : 0;
+            startTime = new Date(Y, Mo-1, D, hh, mm, ss, 0);
           }
         }
-      }
 
-      const startId = generateSnowflakeIdFromJst(finalStartTime);
-      const endId = generateSnowflakeIdFromJst(finalEndTime);
-      const posts = await fetchPublicTimelineInRange(startId, endId);
-      displayPosts(posts);
+        // 投稿件数による公開タイムライン検索
+        const posts = await fetchPublicTimelineByCount(postCountInput, startTime);
+        displayPosts(posts);
+      } else {
+        // 時間範囲指定モード（従来の処理）
+        if (!raw) throw new Error('時間を入力してください');
+
+        // 様々な形式をサポート: YYYY-MM-DD, YYYY-MM-DD HH, YYYY-MM-DD HH:MM, YYYY-MM-DD HH:MM:SS
+        // YYYY/MM/DD, YYYY/MM/DD HH, YYYY/MM/DD HH:MM, YYYY/MM/DD HH:MM:SS
+        // 1桁の月日にも対応: YYYY/M/D H:MM:SS
+        const timeMatch = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+        if (!timeMatch) throw new Error('日時形式は YYYY-MM-DD, YYYY-MM-DD HH:MM:SS または YYYY/M/D H:MM:SS です');
+
+        const Y = Number(timeMatch[1]);
+        const Mo = Number(timeMatch[2]);
+        const D = Number(timeMatch[3]);
+        const hh = timeMatch[4] ? Number(timeMatch[4]) : 0;
+        const mm = timeMatch[5] ? Number(timeMatch[5]) : 0;
+        const ss = timeMatch[6] ? Number(timeMatch[6]) : 0;
+
+        const timeRangeSelect = document.getElementById('mastodonTimeRange');
+        const timeRangeInput = timeRangeSelect ? timeRangeSelect.value.trim() : '1:00:00';
+
+        const startJst = new Date(Y, Mo-1, D, hh, mm, ss, 0);
+
+        // 終了時刻フィールドから終了時刻を取得して検証・入れ替え
+        const generatedField = document.getElementById('mastodonGeneratedTime');
+        let endJst;
+        let finalStartTime = startJst;
+        let finalEndTime;
+
+        if (generatedField && generatedField.value.trim()) {
+          try {
+            const userEndTime = parseDateTime(generatedField.value.trim());
+            const adjustedTimes = adjustTimeRange(startJst, userEndTime,
+              document.getElementById('mastodonPostIdOrTime'), generatedField, 'mastodon-content-timeRange');
+            finalStartTime = adjustedTimes.start;
+            finalEndTime = adjustedTimes.end;
+          } catch (e) {
+            // パース失敗時はtimeRangeInputを使用
+            finalEndTime = parseAndAddTime(startJst, timeRangeInput);
+          }
+        } else {
+          finalEndTime = parseAndAddTime(startJst, timeRangeInput);
+          // マイナス値の場合の処理
+          if (finalEndTime <= startJst) {
+            const adjustedTimes = adjustTimeRange(startJst, finalEndTime,
+              document.getElementById('mastodonPostIdOrTime'), generatedField, 'mastodon-content-timeRange');
+            finalStartTime = adjustedTimes.start;
+            finalEndTime = adjustedTimes.end;
+            // 生成された範囲フィールドも更新
+            if (generatedField) {
+              generatedField.value = formatDateTime(finalEndTime);
+            }
+          }
+        }
+
+        const startId = generateSnowflakeIdFromJst(finalStartTime);
+        const endId = generateSnowflakeIdFromJst(finalEndTime);
+        const posts = await fetchPublicTimelineInRange(startId, endId);
+        displayPosts(posts);
+      }
     }
   } catch (err) {
     showError(err.message);
@@ -742,6 +786,170 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
     if (batch.length < 40) break;
   }
 
+  return all;
+}
+
+async function fetchPublicTimelineByCount(postCount, startTime = null) {
+  let all = [];
+  let maxId = null;
+  let requestCount = 0;
+  const maxRequests = 275;
+
+  const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
+  const stored = await getStorageAsync(keys);
+  const instanceUrl = getCurrentInstanceUrl();
+
+  // 開始時刻が指定されている場合の特別処理
+  if (startTime) {
+    const targetSnowflakeId = generateSnowflakeIdFromJst(startTime);
+
+    if (postCount < 0) {
+      // マイナス値指定：過去方向のみの取得
+      const actualPostCount = Math.abs(postCount);
+      let pastPosts = [];
+
+      // 過去方向検索：max_idのみを使用して過去に向かって取得
+      // 指定時刻から開始
+      let maxId = targetSnowflakeId;
+      let pastRequestCount = 0;
+
+      while (pastRequestCount < maxRequests && pastPosts.length < actualPostCount * 2) {
+        const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
+        url.searchParams.set('limit', '40');
+        url.searchParams.set('max_id', maxId);
+        url.searchParams.set('local', 'true');
+
+        const res = await fetch(url, {
+          headers: {
+            "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+            "X-Csrf-Token": stored["x_csrf_token"],
+            "Authorization": stored["authorization"]
+          },
+          credentials: "include"
+        });
+
+        if (!res.ok) break;
+
+        const batch = await res.json();
+        if (!batch.length) break;
+
+        // 指定時刻以前の投稿のみを追加
+        const validPosts = batch.filter(post => new Date(post.created_at) <= startTime);
+        pastPosts = pastPosts.concat(validPosts);
+
+        // max_idを更新
+        maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
+        pastRequestCount++;
+
+        if (pastPosts.length > 10) {
+          document.getElementById('mastodonResult').innerHTML =
+            `<div class="mastodon-loading">取得中... ${pastPosts.length}件取得済み</div>`;
+        }
+
+        // 必要な件数が取得できたらループを終了
+        if (pastPosts.length >= actualPostCount) break;
+        if (batch.length < 40) break;
+      }
+
+      all = pastPosts.slice(0, actualPostCount);
+      return all;
+    } else {
+      // 正の値指定：指定時刻以降の投稿を取得（未来方向のみ）
+      let futurePosts = [];
+
+      // 指定時刻の1秒前をsince_idとして設定（指定時刻を含むため）
+      const oneSecondBefore = new Date(startTime.getTime() - 1000);
+      const sinceId = generateSnowflakeIdFromJst(oneSecondBefore);
+
+      // 現在時刻より少し先をmax_idとして設定
+      const futureTime = new Date(Date.now() + 86400000); // 24時間後
+      let maxId = generateSnowflakeIdFromJst(futureTime);
+      let futureRequestCount = 0;
+
+      while (futureRequestCount < maxRequests && futurePosts.length < postCount * 2) {
+        const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
+        url.searchParams.set('limit', '40');
+        url.searchParams.set('max_id', maxId);
+        url.searchParams.set('since_id', sinceId);
+        url.searchParams.set('local', 'true');
+
+        const res = await fetch(url, {
+          headers: {
+            "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+            "X-Csrf-Token": stored["x_csrf_token"],
+            "Authorization": stored["authorization"]
+          },
+          credentials: "include"
+        });
+
+        if (!res.ok) break;
+
+        const batch = await res.json();
+        if (!batch.length) break;
+
+        // 指定時刻以降の投稿のみを追加
+        const validPosts = batch.filter(post => new Date(post.created_at) >= startTime);
+        futurePosts = futurePosts.concat(validPosts);
+
+        // max_idを更新
+        maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
+        futureRequestCount++;
+
+        if (futurePosts.length > 10) {
+          document.getElementById('mastodonResult').innerHTML =
+            `<div class="mastodon-loading">取得中... ${futurePosts.length}件取得済み</div>`;
+        }
+
+        if (batch.length < 40) break;
+      }
+
+      // 時系列順（新しいものから古いものへ）にソート
+      futurePosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      all = futurePosts.slice(0, postCount);
+      return all;
+    }
+  }
+
+  // 従来の処理（投稿件数モードで時刻指定なし）
+  const actualPostCount = Math.abs(postCount);
+
+  while (requestCount < maxRequests && all.length < actualPostCount) {
+    const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
+    url.searchParams.set('limit', '40');
+    url.searchParams.set('local', 'true');
+
+    if (maxId) {
+      url.searchParams.set('max_id', maxId);
+    }
+
+    const res = await fetch(url, {
+      headers: {
+        "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+        "X-Csrf-Token": stored["x_csrf_token"],
+        "Authorization": stored["authorization"]
+      },
+      credentials: "include"
+    });
+
+    if (!res.ok) throw new Error('タイムライン取得エラー');
+
+    const batch = await res.json();
+    if (!batch.length) break;
+
+    all = all.concat(batch);
+    requestCount++;
+
+    if (all.length > 10) {
+      document.getElementById('mastodonResult').innerHTML =
+        `<div class="mastodon-loading">取得中... ${all.length}件取得済み</div>`;
+    }
+
+    maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
+    if (batch.length < 40) break;
+  }
+
+  // 指定件数にトリム
+  all = all.slice(0, actualPostCount);
   return all;
 }
 
