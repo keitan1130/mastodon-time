@@ -802,15 +802,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // 正の値指定：指定時刻以降の投稿を取得（未来方向）
         let futurePosts = [];
 
-        // min_idを使用して指定時刻以降の投稿を取得
-        const targetSnowflakeId = generateSnowflakeIdFromJst(startTime);
-        let minId = targetSnowflakeId;
+        // ユーザー投稿と同じ手法：since_idとmax_idの両方を使用
+        // 指定時刻の1秒前をsince_idとして設定（指定時刻を含むため）
+        const oneSecondBefore = new Date(startTime.getTime() - 1000);
+        const sinceId = generateSnowflakeIdFromJst(oneSecondBefore);
+
+        // 現在時刻より少し先をmax_idとして設定
+        const futureTime = new Date(Date.now() + 86400000); // 24時間後
+        let maxId = generateSnowflakeIdFromJst(futureTime);
         let futureRequestCount = 0;
 
-        while (futureRequestCount < maxRequests && futurePosts.length < postCount) {
+        while (futureRequestCount < maxRequests && futurePosts.length < postCount * 2) {
           const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
           url.searchParams.set('limit', '40');
-          url.searchParams.set('min_id', minId);
+          url.searchParams.set('since_id', sinceId);
+          url.searchParams.set('max_id', maxId);
           url.searchParams.set('local', 'true');
 
           const res = await fetch(url, {
@@ -827,10 +833,12 @@ document.addEventListener('DOMContentLoaded', function() {
           const batch = await res.json();
           if (!batch.length) break;
 
-          futurePosts = futurePosts.concat(batch);
+          // 指定時刻以降の投稿のみを追加
+          const validPosts = batch.filter(post => new Date(post.created_at) >= startTime);
+          futurePosts = futurePosts.concat(validPosts);
 
-          // min_idを更新（最初の投稿IDに設定して、さらに新しい投稿を取得）
-          minId = batch[0].id;
+          // max_idを更新（時間検索と同じ手法）
+          maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
           futureRequestCount++;
 
           if (futurePosts.length > 10) {
@@ -838,6 +846,8 @@ document.addEventListener('DOMContentLoaded', function() {
               `<div class="loading">取得中... ${futurePosts.length}件取得済み</div>`;
           }
 
+          // 必要な件数が取得できたらループを終了
+          if (futurePosts.length >= postCount) break;
           if (batch.length < 40) break;
         }
 
