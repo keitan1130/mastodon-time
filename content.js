@@ -1008,6 +1008,14 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
         if (validPosts.length === 0) {
           // 現在の時間範囲の開始時刻からmin_idで次の投稿を探索
           const currentPeriodStart = new Date(startTime.getTime() + requestCount * searchTimeMs);
+
+          // 現在時刻+24時間を超える場合は検索を終了
+          const currentTime = new Date();
+          const maxSearchTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000); // 現在時刻+24時間
+          if (currentPeriodStart > maxSearchTime) {
+            break;
+          }
+
           const nextMinIdUrl = new URL(`${instanceUrl}/api/v1/timelines/public`);
           nextMinIdUrl.searchParams.set('limit', '1');
           nextMinIdUrl.searchParams.set('min_id', generateSnowflakeIdFromJst(currentPeriodStart));
@@ -1025,8 +1033,20 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
           if (nextMinIdRes.ok) {
             const nextMinIdBatch = await nextMinIdRes.json();
             if (nextMinIdBatch.length > 0) {
+              // 見つかった投稿の時刻をチェック
+              const foundPostTime = new Date(nextMinIdBatch[0].created_at);
+
+              // 見つかった投稿が現在時刻+24時間を超える場合は検索を終了
+              if (foundPostTime > maxSearchTime) {
+                break;
+              }
+
               // 見つかった投稿のIDを since_id として使用
               currentSinceId = (BigInt(nextMinIdBatch[0].id) - 1n).toString();
+
+              // startTimeも更新して、見つかった投稿の時刻に合わせる
+              startTime = foundPostTime;
+
               continue; // 新しいsince_idで再度検索
             }
           }
@@ -1098,7 +1118,8 @@ async function fetchUserPosts(username, options = {}) {
   const stored = await getStorageAsync(keys);
 
   // オプションのデフォルト値
-  const { searchMode = 'timeRange', timeFilter = null, postCount = 200, startTime = null } = options;
+  const { searchMode = 'timeRange', timeFilter = null, postCount = 200, startTime: initialStartTime = null } = options;
+  let startTime = initialStartTime; // startTimeを可変にする
 
   // ユーザー名の解析: user@instance.com か user かを判定
   let targetInstanceUrl;
@@ -1254,16 +1275,16 @@ async function fetchUserPosts(username, options = {}) {
         const nextPeriod = new Date(startTime.getTime() + requestCount * searchTimeMs + searchTimeMs);
         const currentMaxId = generateSnowflakeIdFromJst(nextPeriod);
 
-        // 24時間分のデータを取得
+        // ユーザー指定の検索時間分のデータを取得
         let batchPosts = [];
-        let maxId = currentMaxId;
+        let currentBatchMaxId = currentMaxId;
         let batchRequestCount = 0;
 
-        while (batchRequestCount < 50) { // 1つの24時間範囲内での最大リクエスト数
+        while (batchRequestCount < 50) { // 1つの検索時間範囲内での最大リクエスト数
           const statusesUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
           statusesUrl.searchParams.set('limit', '40');
           statusesUrl.searchParams.set('since_id', currentSinceId);
-          statusesUrl.searchParams.set('max_id', maxId);
+          statusesUrl.searchParams.set('max_id', currentBatchMaxId);
 
           const statusesRes = await fetch(statusesUrl, {
             headers: {
@@ -1285,7 +1306,7 @@ async function fetchUserPosts(username, options = {}) {
           if (!batch.length) break;
 
           batchPosts = batchPosts.concat(batch);
-          maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
+          currentBatchMaxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
           batchRequestCount++;
 
           if (batch.length < 40) break;
@@ -1312,6 +1333,14 @@ async function fetchUserPosts(username, options = {}) {
         if (validPosts.length === 0) {
           // 現在の時間範囲の開始時刻からmin_idで次の投稿を探索
           const currentPeriodStart = new Date(startTime.getTime() + requestCount * searchTimeMs);
+
+          // 現在時刻+24時間を超える場合は検索を終了
+          const currentTime = new Date();
+          const maxSearchTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000); // 現在時刻+24時間
+          if (currentPeriodStart > maxSearchTime) {
+            break;
+          }
+
           const nextMinIdUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
           nextMinIdUrl.searchParams.set('limit', '1');
           nextMinIdUrl.searchParams.set('min_id', generateSnowflakeIdFromJst(currentPeriodStart));
@@ -1333,8 +1362,20 @@ async function fetchUserPosts(username, options = {}) {
           if (nextMinIdRes.ok) {
             const nextMinIdBatch = await nextMinIdRes.json();
             if (nextMinIdBatch.length > 0) {
+              // 見つかった投稿の時刻をチェック
+              const foundPostTime = new Date(nextMinIdBatch[0].created_at);
+
+              // 見つかった投稿が現在時刻+24時間を超える場合は検索を終了
+              if (foundPostTime > maxSearchTime) {
+                break;
+              }
+
               // 見つかった投稿のIDを since_id として使用
               currentSinceId = (BigInt(nextMinIdBatch[0].id) - 1n).toString();
+
+              // startTimeも更新して、見つかった投稿の時刻に合わせる
+              startTime = foundPostTime;
+
               continue; // 新しいsince_idで再度検索
             }
           }
@@ -1345,9 +1386,7 @@ async function fetchUserPosts(username, options = {}) {
 
         // 次の範囲のsince_idを現在のmax_idに設定
         currentSinceId = currentMaxId;
-      }
-
-      // 指定時間に近い順（古い順）で指定件数だけ取得
+      }      // 指定時間に近い順（古い順）で指定件数だけ取得
       const result = futurePosts.slice(0, postCount);
 
       // 最終的に新しいものから古いものの順で表示用にソート
