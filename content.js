@@ -65,6 +65,7 @@ function injectMastodonViewer() {
       </div>
 
       <div id="mastodon-main-input" class="mastodon-input-group">
+        <label for="mastodonPostIdOrTime">開始時刻:</label>
         <input type="text" id="mastodonPostIdOrTime" placeholder="入力してください">
       </div>
 
@@ -442,6 +443,12 @@ function updateInputUI() {
     mainInput.style.display = 'block';
     mainInputField.value = localStorage.getItem('mastodon-content-postId') || '114914719105992385';
     mainInputField.placeholder = '投稿ID';
+
+    // ラベルを変更
+    const mainInputLabel = document.querySelector('label[for="mastodonPostIdOrTime"]');
+    if (mainInputLabel) {
+      mainInputLabel.textContent = '投稿ID:';
+    }
   } else if (type === 'user') {
     userInput.style.display = 'block';
     timeInput.style.display = 'block';
@@ -475,6 +482,12 @@ function updateInputUI() {
     // パブリック（time）モード
     mainInput.style.display = 'block';
     searchModeSelector.style.display = 'block';
+
+    // ラベルを変更
+    const mainInputLabel = document.querySelector('label[for="mastodonPostIdOrTime"]');
+    if (mainInputLabel) {
+      mainInputLabel.textContent = '開始時刻:';
+    }
 
     const savedTimeRange = localStorage.getItem('mastodon-content-timeRange');
     if (savedTimeRange) {
