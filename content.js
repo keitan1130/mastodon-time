@@ -101,7 +101,7 @@ function injectMastodonViewer() {
       <div id="mastodonPostCountSelector" class="mastodon-input-group" style="display: none;">
         <label for="mastodonPostCount">取得件数:</label>
         <input type="number" id="mastodonPostCount" placeholder="200" min="-10000" max="10000" value="200" style="width: 80px;">
-        <span>件（+で未来方向、-で過去方向、最大10000件）</span>
+        <span>件（+未来,-過去,最大10000件）</span>
       </div>
 
       <div id="mastodonGeneratedTimeDisplay" class="mastodon-input-group">
@@ -807,15 +807,16 @@ async function fetchUserPosts(username, options = {}) {
       // マイナス値指定：過去方向のみの取得
       const actualPostCount = Math.abs(postCount);
       let pastPosts = [];
-      // targetSnowflakeIdより1秒分大きな値を使って、指定時刻を含む過去の投稿を取得
-      const oneSecondAfter = new Date(startTime.getTime() + 1000);
-      let pastMaxId = generateSnowflakeIdFromJst(oneSecondAfter);
+
+      // 過去方向検索：max_idのみを使用して過去に向かって取得
+      // 指定時刻から開始
+      let maxId = targetSnowflakeId;
       let pastRequestCount = 0;
 
-      while (pastRequestCount < maxRequests && pastPosts.length < actualPostCount) {
+      while (pastRequestCount < maxRequests && pastPosts.length < actualPostCount * 2) {
         const statusesUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
         statusesUrl.searchParams.set('limit', '40');
-        statusesUrl.searchParams.set('max_id', pastMaxId);
+        statusesUrl.searchParams.set('max_id', maxId);
 
         const statusesRes = await fetch(statusesUrl, {
           headers: {
@@ -836,15 +837,20 @@ async function fetchUserPosts(username, options = {}) {
         const batch = await statusesRes.json();
         if (!batch.length) break;
 
-        pastPosts = pastPosts.concat(batch);
-        pastMaxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
-        pastRequestCount++;
+        // 指定時刻以前の投稿のみを追加
+        const validPosts = batch.filter(post => new Date(post.created_at) <= startTime);
+        pastPosts = pastPosts.concat(validPosts);
+        console.log(`過去方向バッチ${pastRequestCount}: ${batch.length}個取得, 有効${validPosts.length}個, 累計${pastPosts.length}個`);
 
-        if (pastPosts.length > 10) {
+        // max_idを更新（時間検索と同じ手法）
+        maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
+        pastRequestCount++;        if (pastPosts.length > 10) {
           document.getElementById('mastodonResult').innerHTML =
             `<div class="mastodon-loading">取得中... ${pastPosts.length}件取得済み</div>`;
         }
 
+        // 必要な件数が取得できたらループを終了
+        if (pastPosts.length >= actualPostCount) break;
         if (batch.length < 40) break;
       }
 
@@ -853,15 +859,22 @@ async function fetchUserPosts(username, options = {}) {
     } else {
       // 正の値指定：指定時刻以降の投稿を取得（未来方向のみ）
       let futurePosts = [];
-      // targetSnowflakeIdより1秒分小さな値を使って、指定時刻を含む未来の投稿を取得
+
+      // 時間検索と同じ手法：since_idとmax_idの両方を使用
+      // 指定時刻の1秒前をsince_idとして設定（指定時刻を含むため）
       const oneSecondBefore = new Date(startTime.getTime() - 1000);
-      let futureMinId = generateSnowflakeIdFromJst(oneSecondBefore);
+      const sinceId = generateSnowflakeIdFromJst(oneSecondBefore);
+
+      // 現在時刻より少し先をmax_idとして設定
+      const futureTime = new Date(Date.now() + 86400000); // 24時間後
+      let maxId = generateSnowflakeIdFromJst(futureTime);
       let futureRequestCount = 0;
 
-      while (futureRequestCount < maxRequests && futurePosts.length < postCount) {
+      while (futureRequestCount < maxRequests && futurePosts.length < postCount * 2) {
         const statusesUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
         statusesUrl.searchParams.set('limit', '40');
-        statusesUrl.searchParams.set('min_id', futureMinId);
+        statusesUrl.searchParams.set('max_id', maxId);
+        statusesUrl.searchParams.set('since_id', sinceId);
 
         const statusesRes = await fetch(statusesUrl, {
           headers: {
@@ -882,9 +895,13 @@ async function fetchUserPosts(username, options = {}) {
         const batch = await statusesRes.json();
         if (!batch.length) break;
 
-        // min_idで取得した場合は新しいものから順になるので、配列の先頭に挿入
-        futurePosts = batch.concat(futurePosts);
-        futureMinId = (BigInt(batch[0].id) + 1n).toString();
+        // 指定時刻以降の投稿のみを追加
+        const validPosts = batch.filter(post => new Date(post.created_at) >= startTime);
+        futurePosts = futurePosts.concat(validPosts);
+        console.log(`未来方向バッチ${futureRequestCount}: ${batch.length}個取得, 有効${validPosts.length}個, 累計${futurePosts.length}個`);
+
+        // max_idを更新（時間検索と同じ手法）
+        maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
         futureRequestCount++;
 
         if (futurePosts.length > 10) {
@@ -895,7 +912,7 @@ async function fetchUserPosts(username, options = {}) {
         if (batch.length < 40) break;
       }
 
-      // 時系列順（新しいものから古いものへ）にソートしてから件数制限
+      // 時系列順（新しいものから古いものへ）にソート
       futurePosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       all = futurePosts.slice(0, postCount);
       return all;
