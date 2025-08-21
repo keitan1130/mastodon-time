@@ -854,23 +854,18 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
       all = pastPosts.slice(0, actualPostCount);
       return all;
     } else {
-      // 正の値指定：指定時刻以降の投稿を取得（未来方向のみ）
+      // 正の値指定：指定時刻以降の投稿を取得（未来方向）
       let futurePosts = [];
 
-      // 指定時刻の1秒前をsince_idとして設定（指定時刻を含むため）
-      const oneSecondBefore = new Date(startTime.getTime() - 1000);
-      const sinceId = generateSnowflakeIdFromJst(oneSecondBefore);
-
-      // 現在時刻より少し先をmax_idとして設定
-      const futureTime = new Date(Date.now() + 86400000); // 24時間後
-      let maxId = generateSnowflakeIdFromJst(futureTime);
+      // min_idを使用して指定時刻以降の投稿を取得
+      const targetSnowflakeId = generateSnowflakeIdFromJst(startTime);
+      let minId = targetSnowflakeId;
       let futureRequestCount = 0;
 
-      while (futureRequestCount < maxRequests && futurePosts.length < postCount * 2) {
+      while (futureRequestCount < maxRequests && futurePosts.length < postCount) {
         const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
         url.searchParams.set('limit', '40');
-        url.searchParams.set('max_id', maxId);
-        url.searchParams.set('since_id', sinceId);
+        url.searchParams.set('min_id', minId);
         url.searchParams.set('local', 'true');
 
         const res = await fetch(url, {
@@ -887,12 +882,10 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
         const batch = await res.json();
         if (!batch.length) break;
 
-        // 指定時刻以降の投稿のみを追加
-        const validPosts = batch.filter(post => new Date(post.created_at) >= startTime);
-        futurePosts = futurePosts.concat(validPosts);
+        futurePosts = futurePosts.concat(batch);
 
-        // max_idを更新
-        maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
+        // min_idを更新（最後の投稿IDに設定して、さらに新しい投稿を取得）
+        minId = batch[batch.length-1].id;
         futureRequestCount++;
 
         if (futurePosts.length > 10) {
