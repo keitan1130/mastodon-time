@@ -884,8 +884,8 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
 
         futurePosts = futurePosts.concat(batch);
 
-        // min_idを更新（最後の投稿IDに設定して、さらに新しい投稿を取得）
-        minId = batch[batch.length-1].id;
+        // min_idを更新（最初の投稿IDに設定して、さらに新しい投稿を取得）
+        minId = batch[0].id;
         futureRequestCount++;
 
         if (futurePosts.length > 10) {
