@@ -51,15 +51,15 @@ function injectMastodonViewer() {
         <div class="mastodon-radio-group">
           <label class="mastodon-radio-label">
             <input type="radio" name="mastodonInputType" value="time" checked>
-            <span>時間範囲</span>
-          </label>
-          <label class="mastodon-radio-label">
-            <input type="radio" name="mastodonInputType" value="id">
-            <span>投稿ID</span>
+            <span>パブリック</span>
           </label>
           <label class="mastodon-radio-label">
             <input type="radio" name="mastodonInputType" value="user">
             <span>ユーザー名</span>
+          </label>
+          <label class="mastodon-radio-label">
+            <input type="radio" name="mastodonInputType" value="id">
+            <span>投稿ID</span>
           </label>
         </div>
       </div>
