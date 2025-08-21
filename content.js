@@ -1540,8 +1540,8 @@ function displayPosts(posts) {
     return;
   }
 
-  // 常に取得件数を表示
-  const countText = `<div class="mastodon-count">取得件数: ${posts.length}件</div>`;
+  // 常に取得件数を表示（txtダウンロードリンク付き）
+  const countText = `<div class="mastodon-count">取得件数: ${posts.length}件 <a href="#" id="mastodonTxtDownloadLink" style="margin-left: 10px; color: #6364ff; text-decoration: underline; font-size: 13px;">txtダウンロード</a></div>`;
 
   resultDiv.innerHTML = countText + posts.map(post => {
     const postInfo = getPostDisplayInfo(post);
@@ -1620,6 +1620,15 @@ function displayPosts(posts) {
       }
     });
   });
+
+  // txtダウンロードリンクのクリックイベントを追加
+  const txtDownloadLink = document.getElementById('mastodonTxtDownloadLink');
+  if (txtDownloadLink) {
+    txtDownloadLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      downloadPostsAsTxt(posts);
+    });
+  }
 }
 
 function showError(msg) {
@@ -1997,3 +2006,96 @@ observer.observe(document.body, {
   childList: true,
   subtree: true
 });
+
+// テキストファイルとして投稿データをダウンロードする関数
+function downloadPostsAsTxt(posts) {
+  if (!posts || posts.length === 0) {
+    return;
+  }
+
+  // テキスト内容を生成
+  let txtContent = `Mastodon投稿データ\n`;
+  txtContent += `エクスポート日時: ${new Date().toLocaleString('ja-JP')}\n`;
+  txtContent += `投稿数: ${posts.length}件\n`;
+  txtContent += `\n${'='.repeat(50)}\n\n`;
+
+  posts.forEach((post, index) => {
+    const postInfo = getPostDisplayInfo(post);
+
+    txtContent += `【投稿 ${index + 1}】\n`;
+    txtContent += `投稿ID: ${post.id}\n`;
+
+    if (postInfo.isBoost) {
+      // ブースト投稿の場合
+      txtContent += `ブーストユーザー: ${postInfo.boosterUser} (${postInfo.boosterUsername})\n`;
+      txtContent += `ブースト日時: ${new Date(postInfo.boostTime).toLocaleString('ja-JP')}\n`;
+      txtContent += `元投稿ユーザー: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
+      txtContent += `元投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
+    } else {
+      // 通常投稿の場合
+      txtContent += `ユーザー: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
+      txtContent += `投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
+    }
+
+    txtContent += `URL: ${postInfo.displayUrl}\n`;
+    txtContent += `内容:\n${postInfo.displayContent}\n`;
+
+    // メディア添付情報
+    if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
+      txtContent += `添付メディア: ${postInfo.mediaAttachments.length}件\n`;
+      postInfo.mediaAttachments.forEach((media, mediaIndex) => {
+        txtContent += `  ${mediaIndex + 1}. タイプ: ${media.type}, URL: ${media.url}\n`;
+      });
+    }
+
+    // URLカード情報
+    if (postInfo.card && postInfo.card.url) {
+      txtContent += `リンクカード: ${postInfo.card.title || 'タイトルなし'}\n`;
+      txtContent += `リンクURL: ${postInfo.card.url}\n`;
+      if (postInfo.card.description) {
+        txtContent += `説明: ${postInfo.card.description}\n`;
+      }
+    }
+
+    txtContent += `\n${'-'.repeat(30)}\n\n`;
+  });
+
+  // ファイル名を生成（日時を含む）
+  const now = new Date();
+  const timestamp = now.getFullYear() +
+                   String(now.getMonth() + 1).padStart(2, '0') +
+                   String(now.getDate()).padStart(2, '0') + '_' +
+                   String(now.getHours()).padStart(2, '0') +
+                   String(now.getMinutes()).padStart(2, '0') +
+                   String(now.getSeconds()).padStart(2, '0');
+  const filename = `mastodon_posts_${timestamp}.txt`;
+
+  // ダウンロードを実行
+  const blob = new Blob([txtContent], { type: 'text/plain; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+
+  document.body.appendChild(a);
+  a.click();
+
+  // クリーンアップ
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // ユーザーに成功メッセージを表示
+  const resultDiv = document.getElementById('mastodonResult');
+  const countDiv = resultDiv.querySelector('.mastodon-count');
+  if (countDiv) {
+    const originalCountHTML = countDiv.innerHTML;
+    countDiv.innerHTML = originalCountHTML + ' <span style="color: #4caf50;">ダウンロード完了!</span>';
+
+    // 3秒後に元に戻す
+    setTimeout(() => {
+      countDiv.innerHTML = originalCountHTML;
+    }, 3000);
+  }
+}
