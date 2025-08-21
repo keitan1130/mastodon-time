@@ -320,6 +320,11 @@
         <label for="postCount">取得件数:</label>
         <input type="number" id="postCount" placeholder="200" min="-10000" max="10000" value="200" style="width: 80px;">
         <span>件（+未来,-過去,最大10000件）</span>
+        <div id="searchTimeSelector" style="display: none; margin-top: 8px;">
+          <label for="searchTime">検索時間:</label>
+          <input type="text" id="searchTime" placeholder="24:00:00" value="24:00:00" style="width: 80px;">
+          <span>（HH:MM:SS形式、since_idとmax_idの間隔）</span>
+        </div>
       </div>
 
       <div id="generatedTimeDisplay" style="display: none;">

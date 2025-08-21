@@ -91,12 +91,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // 投稿件数フィールドの自動保存
+  // 投稿件数フィールドの自動保存と検索時間フィールドの表示制御
   const postCountField = document.getElementById('postCount');
   if (postCountField) {
     postCountField.addEventListener('input', function() {
       localStorage.setItem('mastodon-popup-postCount', this.value);
+      updateSearchTimeVisibility();
     });
+  }
+
+  // 検索時間フィールドの自動保存
+  const searchTimeField = document.getElementById('searchTime');
+  if (searchTimeField) {
+    searchTimeField.addEventListener('input', function() {
+      localStorage.setItem('mastodon-popup-searchTime', this.value);
+    });
+  }
+
+  // 前回の検索時間を復元
+  if (searchTimeField) {
+    const savedSearchTime = localStorage.getItem('mastodon-popup-searchTime');
+    if (savedSearchTime) {
+      searchTimeField.value = savedSearchTime;
+    }
   }
 
   // 前回の投稿件数を復元
@@ -248,6 +265,22 @@ document.addEventListener('DOMContentLoaded', function() {
       if (timeRangeSelector) timeRangeSelector.style.display = 'none';
       if (postCountSelector) postCountSelector.style.display = 'block';
       if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'none';
+      updateSearchTimeVisibility();
+    }
+  }
+
+  function updateSearchTimeVisibility() {
+    const postCountField = document.getElementById('postCount');
+    const searchTimeSelector = document.getElementById('searchTimeSelector');
+
+    if (postCountField && searchTimeSelector) {
+      const postCount = parseInt(postCountField.value) || 0;
+      // 正の値（未来方向）の場合のみ検索時間フィールドを表示
+      if (postCount > 0) {
+        searchTimeSelector.style.display = 'block';
+      } else {
+        searchTimeSelector.style.display = 'none';
+      }
     }
   }
 
@@ -416,6 +449,9 @@ document.addEventListener('DOMContentLoaded', function() {
       updateSearchModeUI();
       updateGeneratedTimeRange();
     }
+
+    // 検索時間の表示制御を更新
+    updateSearchTimeVisibility();
 
     resultDiv.innerHTML = '';
   }
@@ -804,7 +840,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let requestCount = 0;
 
         // ユーザー指定の検索時間を取得（デフォルト24時間）
-        const searchTimeField = document.getElementById('mastodonSearchTime');
+        const searchTimeField = document.getElementById('searchTime');
         const searchTimeStr = searchTimeField ? searchTimeField.value : '24:00:00';
         const searchTimeMs = parseSearchTimeToMs(searchTimeStr);
 
@@ -899,6 +935,14 @@ document.addEventListener('DOMContentLoaded', function() {
           if (validPosts.length === 0) {
             // 現在の時間範囲の開始時刻からmin_idで次の投稿を探索
             const currentPeriodStart = new Date(startTime.getTime() + requestCount * searchTimeMs);
+
+            // 現在時刻+24時間を超える場合は検索を終了
+            const currentTime = new Date();
+            const maxSearchTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000); // 現在時刻+24時間
+            if (currentPeriodStart > maxSearchTime) {
+              break;
+            }
+
             const nextMinIdUrl = new URL(`${instanceUrl}/api/v1/timelines/public`);
             nextMinIdUrl.searchParams.set('limit', '1');
             nextMinIdUrl.searchParams.set('min_id', generateSnowflakeIdFromJst(currentPeriodStart));
@@ -916,8 +960,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (nextMinIdRes.ok) {
               const nextMinIdBatch = await nextMinIdRes.json();
               if (nextMinIdBatch.length > 0) {
+                // 見つかった投稿の時刻をチェック
+                const foundPostTime = new Date(nextMinIdBatch[0].created_at);
+
+                // 見つかった投稿が現在時刻+24時間を超える場合は検索を終了
+                if (foundPostTime > maxSearchTime) {
+                  break;
+                }
+
                 // 見つかった投稿のIDを since_id として使用
                 currentSinceId = (BigInt(nextMinIdBatch[0].id) - 1n).toString();
+
+                // startTimeも更新して、見つかった投稿の時刻に合わせる
+                startTime = foundPostTime;
+
                 continue; // 新しいsince_idで再度検索
               }
             }
@@ -991,21 +1047,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // optionsから引数を取得
     // 後方互換性のため、旧引数のtimeFilterも受け取る
-    let searchMode, timeFilter, postCount, startTime;
+    let searchMode, timeFilter, postCount, initialStartTime;
 
     if (options && typeof options === 'object' && options.searchMode) {
       // 新しい形式
       searchMode = options.searchMode || 'timeRange';
       timeFilter = options.timeFilter || null;
       postCount = options.postCount || 200;
-      startTime = options.startTime || null;
+      initialStartTime = options.startTime || null;
     } else {
       // 旧形式（timeFilterが直接渡された場合）
       searchMode = 'timeRange';
       timeFilter = options;
       postCount = 200;
-      startTime = null;
+      initialStartTime = null;
     }
+
+    let startTime = initialStartTime; // startTimeを可変にする
 
     // ユーザー名の解析: user@instance.com か user かを判定
     let targetInstanceUrl;
@@ -1109,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let requestCount = 0;
 
         // ユーザー指定の検索時間を取得（デフォルト24時間）
-        const searchTimeField = document.getElementById('mastodonSearchTime');
+        const searchTimeField = document.getElementById('searchTime');
         const searchTimeStr = searchTimeField ? searchTimeField.value : '24:00:00';
         const searchTimeMs = parseSearchTimeToMs(searchTimeStr);
 
@@ -1212,6 +1270,14 @@ document.addEventListener('DOMContentLoaded', function() {
           if (validPosts.length === 0) {
             // 現在の時間範囲の開始時刻からmin_idで次の投稿を探索
             const currentPeriodStart = new Date(startTime.getTime() + requestCount * searchTimeMs);
+
+            // 現在時刻+24時間を超える場合は検索を終了
+            const currentTime = new Date();
+            const maxSearchTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000); // 現在時刻+24時間
+            if (currentPeriodStart > maxSearchTime) {
+              break;
+            }
+
             const nextMinIdUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
             nextMinIdUrl.searchParams.set('limit', '1');
             nextMinIdUrl.searchParams.set('min_id', generateSnowflakeIdFromJst(currentPeriodStart));
@@ -1233,8 +1299,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (nextMinIdRes.ok) {
               const nextMinIdBatch = await nextMinIdRes.json();
               if (nextMinIdBatch.length > 0) {
+                // 見つかった投稿の時刻をチェック
+                const foundPostTime = new Date(nextMinIdBatch[0].created_at);
+
+                // 見つかった投稿が現在時刻+24時間を超える場合は検索を終了
+                if (foundPostTime > maxSearchTime) {
+                  break;
+                }
+
                 // 見つかった投稿のIDを since_id として使用
                 currentSinceId = (BigInt(nextMinIdBatch[0].id) - 1n).toString();
+
+                // startTimeも更新して、見つかった投稿の時刻に合わせる
+                startTime = foundPostTime;
+
                 continue; // 新しいsince_idで再度検索
               }
             }
