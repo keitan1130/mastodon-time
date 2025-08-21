@@ -854,24 +854,47 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
       all = pastPosts.slice(0, actualPostCount);
       return all;
     } else {
-      // 正の値指定：指定時刻以降の投稿を取得（未来方向）
+      // 正の値指定：未来方向の取得（修正版）
       let futurePosts = [];
 
-      // ユーザー投稿と同じ手法：since_idとmax_idの両方を使用
-      // 指定時刻の1秒前をsince_idとして設定（指定時刻を含むため）
-      const oneSecondBefore = new Date(startTime.getTime() - 1000);
-      const sinceId = generateSnowflakeIdFromJst(oneSecondBefore);
-
-      // 現在時刻より少し先をmax_idとして設定
+      // 1. まず24時間後のIDで最新の投稿を1個取得
       const futureTime = new Date(Date.now() + 86400000); // 24時間後
-      let maxId = generateSnowflakeIdFromJst(futureTime);
+      const futureMaxId = generateSnowflakeIdFromJst(futureTime);
+
+      const initialUrl = new URL(`${instanceUrl}/api/v1/timelines/public`);
+      initialUrl.searchParams.set('limit', '1');
+      initialUrl.searchParams.set('max_id', futureMaxId);
+      initialUrl.searchParams.set('local', 'true');
+
+      const initialRes = await fetch(initialUrl, {
+        headers: {
+          "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+          "X-Csrf-Token": stored["x_csrf_token"],
+          "Authorization": stored["authorization"]
+        },
+        credentials: "include"
+      });
+
+      if (!initialRes.ok) {
+        throw new Error('初回取得に失敗しました');
+      }
+
+      const initialBatch = await initialRes.json();
+      if (!initialBatch.length) {
+        // 投稿がない場合は空配列を返す
+        return [];
+      }
+
+      const latestPostId = initialBatch[0].id;
+
+      // 2. min_idで指定時刻から未来方向に取得
+      const minId = targetSnowflakeId;
       let futureRequestCount = 0;
 
-      while (futureRequestCount < maxRequests && futurePosts.length < postCount * 2) {
+      while (futureRequestCount < maxRequests && futurePosts.length < postCount) {
         const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
         url.searchParams.set('limit', '40');
-        url.searchParams.set('since_id', sinceId);
-        url.searchParams.set('max_id', maxId);
+        url.searchParams.set('min_id', minId);
         url.searchParams.set('local', 'true');
 
         const res = await fetch(url, {
@@ -892,8 +915,6 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
         const validPosts = batch.filter(post => new Date(post.created_at) >= startTime);
         futurePosts = futurePosts.concat(validPosts);
 
-        // max_idを更新（時間検索と同じ手法）
-        maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
         futureRequestCount++;
 
         if (futurePosts.length > 10) {
@@ -901,8 +922,12 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
             `<div class="mastodon-loading">取得中... ${futurePosts.length}件取得済み</div>`;
         }
 
-        // 必要な件数が取得できたらループを終了
+        // 必要な件数が取得できたら終了
         if (futurePosts.length >= postCount) break;
+
+        // 最新の投稿IDに達したら終了
+        if (batch.some(post => post.id === latestPostId)) break;
+
         if (batch.length < 40) break;
       }
 
@@ -1068,24 +1093,50 @@ async function fetchUserPosts(username, options = {}) {
       all = pastPosts.slice(0, actualPostCount);
       return all;
     } else {
-      // 正の値指定：指定時刻以降の投稿を取得（未来方向のみ）
+      // 正の値指定：未来方向の取得（修正版）
       let futurePosts = [];
 
-      // 時間検索と同じ手法：since_idとmax_idの両方を使用
-      // 指定時刻の1秒前をsince_idとして設定（指定時刻を含むため）
-      const oneSecondBefore = new Date(startTime.getTime() - 1000);
-      const sinceId = generateSnowflakeIdFromJst(oneSecondBefore);
-
-      // 現在時刻より少し先をmax_idとして設定
+      // 1. まず24時間後のIDで最新の投稿を1個取得
       const futureTime = new Date(Date.now() + 86400000); // 24時間後
-      let maxId = generateSnowflakeIdFromJst(futureTime);
+      const futureMaxId = generateSnowflakeIdFromJst(futureTime);
+
+      const initialStatusesUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
+      initialStatusesUrl.searchParams.set('limit', '1');
+      initialStatusesUrl.searchParams.set('max_id', futureMaxId);
+
+      const initialStatusesRes = await fetch(initialStatusesUrl, {
+        headers: {
+          "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+          "X-Csrf-Token": stored["x_csrf_token"],
+          "Authorization": stored["authorization"]
+        },
+        credentials: "include"
+      }).catch(async () => {
+        if (username.includes('@')) {
+          return await fetch(initialStatusesUrl);
+        }
+        throw new Error('認証エラー');
+      });
+
+      if (!initialStatusesRes.ok) {
+        return [];
+      }
+
+      const initialBatch = await initialStatusesRes.json();
+      if (!initialBatch.length) {
+        return [];
+      }
+
+      const latestPostId = initialBatch[0].id;
+
+      // 2. min_idで指定時刻から未来方向に取得
+      const minId = targetSnowflakeId;
       let futureRequestCount = 0;
 
-      while (futureRequestCount < maxRequests && futurePosts.length < postCount * 2) {
+      while (futureRequestCount < maxRequests && futurePosts.length < postCount) {
         const statusesUrl = new URL(`${targetInstanceUrl}/api/v1/accounts/${account.id}/statuses`);
         statusesUrl.searchParams.set('limit', '40');
-        statusesUrl.searchParams.set('max_id', maxId);
-        statusesUrl.searchParams.set('since_id', sinceId);
+        statusesUrl.searchParams.set('min_id', minId);
 
         const statusesRes = await fetch(statusesUrl, {
           headers: {
@@ -1109,16 +1160,19 @@ async function fetchUserPosts(username, options = {}) {
         // 指定時刻以降の投稿のみを追加
         const validPosts = batch.filter(post => new Date(post.created_at) >= startTime);
         futurePosts = futurePosts.concat(validPosts);
-        console.log(`未来方向バッチ${futureRequestCount}: ${batch.length}個取得, 有効${validPosts.length}個, 累計${futurePosts.length}個`);
 
-        // max_idを更新（時間検索と同じ手法）
-        maxId = (BigInt(batch[batch.length-1].id) - 1n).toString();
         futureRequestCount++;
 
         if (futurePosts.length > 10) {
           document.getElementById('mastodonResult').innerHTML =
             `<div class="mastodon-loading">取得中... ${futurePosts.length}件取得済み</div>`;
         }
+
+        // 必要な件数が取得できたら終了
+        if (futurePosts.length >= postCount) break;
+
+        // 最新の投稿IDに達したら終了
+        if (batch.some(post => post.id === latestPostId)) break;
 
         if (batch.length < 40) break;
       }
