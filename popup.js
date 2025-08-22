@@ -274,7 +274,7 @@ function displayPosts(posts) {
   }
 
   // 常に取得件数を表示（txtダウンロードリンク付き）
-  const countText = `<div class="count">取得件数: ${posts.length}件 <a href="#" id="txtDownloadLink" style="margin-left: 10px; color: #6364ff; text-decoration: underline; font-size: 13px;">txtダウンロード</a></div>`;
+  const countText = `<div class="mastodon-count">取得件数: ${posts.length}件 <a href="#" id="mastodonTxtDownloadLink" style="margin-left: 10px; color: #6364ff; text-decoration: underline; font-size: 13px;">txtダウンロード</a></div>`;
 
   resultDiv.innerHTML = countText + posts.map(post => {
     const postInfo = getPostDisplayInfo(post);
@@ -355,7 +355,7 @@ function displayPosts(posts) {
   });
 
   // txtダウンロードリンクのクリックイベントを追加
-  const txtDownloadLink = document.getElementById('txtDownloadLink');
+  const txtDownloadLink = document.getElementById('mastodonTxtDownloadLink');
   if (txtDownloadLink) {
     txtDownloadLink.addEventListener('click', (e) => {
       e.preventDefault();
@@ -2123,7 +2123,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 常に取得件数を表示（txtダウンロードリンク付き）
-    const countText = `<div class="count">取得件数: ${posts.length}件 <a href="#" id="txtDownloadLink" style="margin-left: 10px; color: #6364ff; text-decoration: underline; font-size: 13px;">txtダウンロード</a></div>`;
+    const countText = `<div class="mastodon-count">取得件数: ${posts.length}件 <a href="#" id="mastodonTxtDownloadLink" style="margin-left: 10px; color: #6364ff; text-decoration: underline; font-size: 13px;">txtダウンロード</a></div>`;
 
     resultDiv.innerHTML = countText + posts.map(post => {
       const postInfo = getPostDisplayInfo(post);
@@ -2204,7 +2204,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // txtダウンロードリンクのクリックイベントを追加
-    const txtDownloadLink = document.getElementById('txtDownloadLink');
+    const txtDownloadLink = document.getElementById('mastodonTxtDownloadLink');
     if (txtDownloadLink) {
       txtDownloadLink.addEventListener('click', (e) => {
         e.preventDefault();
@@ -2674,15 +2674,59 @@ function initializeInstanceSettings() {
   const instanceUrlField = document.getElementById('instanceUrl');
   const saveInstanceButton = document.getElementById('saveInstance');
   const instanceStatus = document.getElementById('instanceStatus');
+  const instanceNameSpan = document.getElementById('instanceName');
 
   if (!instanceUrlField || !saveInstanceButton || !instanceStatus) {
     return; // 要素が見つからない場合は終了
   }
 
-  // 保存されたインスタンスURLを復元
-  chrome.storage.local.get(['instanceUrl'], (result) => {
+  // インスタンス名を更新する関数
+  async function updateInstanceName(url) {
+    if (instanceNameSpan && url) {
+      try {
+        const hostname = new URL(url).hostname;
+        instanceNameSpan.textContent = '読み込み中...';
+
+        // Mastodon APIからインスタンス情報を取得
+        const apiUrl = `${url.replace(/\/$/, '')}/api/v1/instance`;
+        const response = await fetch(apiUrl);
+
+        if (response.ok) {
+          const instanceData = await response.json();
+          // タイトルまたは短い説明を使用
+          const displayName = instanceData.title || instanceData.short_description || hostname;
+          instanceNameSpan.textContent = displayName;
+          return displayName; // 取得した名前を返す
+        } else {
+          // APIが利用できない場合はホスト名を表示
+          instanceNameSpan.textContent = hostname;
+          return hostname;
+        }
+      } catch (e) {
+        // エラーの場合はホスト名を表示
+        try {
+          const hostname = new URL(url).hostname;
+          instanceNameSpan.textContent = hostname;
+          return hostname;
+        } catch (urlError) {
+          instanceNameSpan.textContent = 'Invalid URL';
+          return 'Invalid URL';
+        }
+      }
+    }
+    return null;
+  }
+
+  // 保存されたインスタンスURLと名前を復元
+  chrome.storage.local.get(['instanceUrl', 'instanceName'], (result) => {
     if (result.instanceUrl) {
       instanceUrlField.value = result.instanceUrl;
+      // 保存された名前があればそれを使用、なければAPI呼び出し
+      if (result.instanceName && instanceNameSpan) {
+        instanceNameSpan.textContent = result.instanceName;
+      } else {
+        updateInstanceName(result.instanceUrl);
+      }
     }
   });
 
@@ -2710,11 +2754,20 @@ function initializeInstanceSettings() {
       }
 
       const info = await instanceInfo.json();
+      const instanceDisplayName = info.title || info.short_description || new URL(url).hostname;
 
-      // インスタンスURLを保存
-      chrome.storage.local.set({ instanceUrl: url }, () => {
-        instanceStatus.textContent = `✅ ${info.title || 'インスタンス'}に設定しました`;
+      // インスタンスURLと名前を保存
+      chrome.storage.local.set({
+        instanceUrl: url,
+        instanceName: instanceDisplayName
+      }, () => {
+        instanceStatus.textContent = `✅ ${instanceDisplayName}に設定しました`;
         instanceStatus.style.color = '#4caf50';
+
+        // インスタンス名を即座に表示
+        if (instanceNameSpan) {
+          instanceNameSpan.textContent = instanceDisplayName;
+        }
 
         // 数秒後にメッセージを消す
         setTimeout(() => {

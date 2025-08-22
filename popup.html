@@ -11,28 +11,17 @@
         min-width: 400px;
         max-width: 600px;
         width: max-content;
-        background: white;
+        background: #1a1e27;
         overflow: auto;
       }
 
       .mastodon-viewer-container {
         width: 100%;
         max-width: 600px;
-        padding: 15px;
-        box-sizing: border-box;
-      }
-
-      /* インスタンス設定の調整 */
-      .instance-settings details summary {
-        cursor: pointer;
-        font-weight: 600;
-        margin-bottom: 10px;
-        color: #6364ff;
-      }
-
-      .instance-settings input[type="url"] {
-        width: 100%;
-        margin: 5px 0;
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        min-height: 100vh;
       }
     </style>
   </head>
@@ -43,20 +32,19 @@
         <button id="historyBtn" class="mastodon-history-btn">履歴</button>
       </div>
 
-      <!-- インスタンス設定セクション -->
-      <div class="instance-settings" style="margin-bottom: 15px;">
-        <details>
-          <summary style="cursor: pointer; font-weight: 600; margin-bottom: 10px; color: #6364ff;">Mastodonインスタンス設定</summary>
-          <div style="margin: 10px 0;">
-            <label for="instanceUrl">インスタンスURL:</label>
-            <input type="url" id="instanceUrl" placeholder="https://mastodon.social" value="https://mastodon.compositecomputer.club">
-            <button id="saveInstance" class="mastodon-btn" style="margin-top: 8px; padding: 6px 12px; font-size: 12px;">保存</button>
-            <div id="instanceStatus" style="margin-top: 5px; font-size: 12px;"></div>
-          </div>
-        </details>
-      </div>
-
       <div id="main-content" class="mastodon-viewer-content">
+        <!-- インスタンス設定 -->
+        <div class="mastodon-input-group">
+          <label for="instanceUrl">
+            インスタンス: <span id="instanceName" class="mastodon-instance-name">mastodon.compositecomputer.club</span>
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="url" id="instanceUrl" placeholder="https://mastodon.social" value="https://mastodon.compositecomputer.club" style="flex: 1;">
+            <button id="saveInstance" class="mastodon-instance-btn">保存</button>
+          </div>
+          <div id="instanceStatus" class="mastodon-instance-status"></div>
+        </div>
+
         <div class="mastodon-input-type-selector">
           <label>入力方式:</label>
           <div class="mastodon-radio-group">
