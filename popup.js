@@ -2468,7 +2468,7 @@ function savePopupHistoryAsTxt(historyId) {
 // 履歴表示と検索フォーム表示を切り替える関数（popup版）
 function togglePopupHistoryView() {
   const historyBtn = document.getElementById('historyBtn');
-  const viewerContent = document.getElementById('viewer-content');
+  const mainContent = document.getElementById('main-content');
   const isShowingHistory = historyBtn.textContent === '戻る';
 
   if (isShowingHistory) {
@@ -2480,16 +2480,11 @@ function togglePopupHistoryView() {
     showPopupHistoryInline();
     historyBtn.textContent = '戻る';
   }
-
-  // コンテンツエリアを展開
-  viewerContent.style.display = 'block';
-  const toggleBtn = document.getElementById('toggle');
-  toggleBtn.textContent = '▼';
 }
 
 // インライン履歴表示関数（popup版）
 function showPopupHistoryInline() {
-  const viewerContent = document.getElementById('viewer-content');
+  const mainContent = document.getElementById('main-content');
   const history = getPopupSearchHistory();
 
   let historyHtml = '';
@@ -2497,7 +2492,7 @@ function showPopupHistoryInline() {
   if (history.length === 0) {
     historyHtml = '<div class="no-history">履歴がありません</div>';
   } else {
-    historyHtml = '<div class="history-inline-title">検索履歴</div>';
+    historyHtml = '<div class="mastodon-history-inline-title">検索履歴</div>';
     historyHtml += history.map(item => {
       const date = new Date(item.timestamp);
       const timeStr = date.toLocaleString('ja-JP');
@@ -2508,57 +2503,57 @@ function showPopupHistoryInline() {
       switch(item.type) {
         case 'id':
           typeLabel = '投稿ID';
-          inputSummary = `ID: ${item.inputs.postId}`;
+          inputSummary = `ID: ${item.inputs?.postId || 'N/A'}`;
           break;
         case 'user':
           typeLabel = 'ユーザー';
-          inputSummary = `${item.inputs.username}`;
-          if (item.inputs.timeInput) {
+          inputSummary = `${item.inputs?.username || 'N/A'}`;
+          if (item.inputs?.timeInput) {
             inputSummary += ` (${item.inputs.timeInput})`;
           }
-          if (item.inputs.searchMode === 'postCount') {
-            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
-          } else if (item.inputs.timeRange) {
+          if (item.inputs?.searchMode === 'postCount') {
+            inputSummary += ` [件数: ${item.inputs.postCount || 0}件]`;
+          } else if (item.inputs?.timeRange) {
             inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
           }
           break;
         case 'time':
           typeLabel = 'パブリック';
-          inputSummary = `${item.inputs.timeInput || '現在時刻'}`;
-          if (item.inputs.searchMode === 'postCount') {
-            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
-          } else if (item.inputs.timeRange) {
+          inputSummary = `${item.inputs?.timeInput || '現在時刻'}`;
+          if (item.inputs?.searchMode === 'postCount') {
+            inputSummary += ` [件数: ${item.inputs.postCount || 0}件]`;
+          } else if (item.inputs?.timeRange) {
             inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
           }
           break;
       }
 
       return `
-        <div class="history-inline-item" data-history-id="${item.id}">
-          <div class="history-inline-header">
-            <span class="history-inline-type">[${typeLabel}]</span>
-            <span class="history-inline-time">${timeStr}</span>
+        <div class="mastodon-history-inline-item" data-history-id="${item.id}">
+          <div class="mastodon-history-inline-header">
+            <span class="mastodon-history-inline-type">[${typeLabel}]</span>
+            <span class="mastodon-history-inline-time">${timeStr}</span>
           </div>
-          <div class="history-inline-summary">${escapeHtml(inputSummary)}</div>
-          <div class="history-inline-result">結果: ${item.resultCount}件</div>
-          <div class="history-inline-actions">
-            <button class="history-inline-restore-btn" data-history-id="${item.id}">復元</button>
-            <button class="history-inline-view-btn" data-history-id="${item.id}">表示</button>
-            <button class="history-inline-save-btn" data-history-id="${item.id}">保存(.txt)</button>
-            <button class="history-inline-delete-btn" data-history-id="${item.id}">削除</button>
+          <div class="mastodon-history-inline-summary">${escapeHtml(inputSummary)}</div>
+          <div class="mastodon-history-inline-result">結果: ${item.resultCount}件</div>
+          <div class="mastodon-history-inline-actions">
+            <button class="mastodon-history-inline-restore-btn" data-history-id="${item.id}">復元</button>
+            <button class="mastodon-history-inline-view-btn" data-history-id="${item.id}">表示</button>
+            <button class="mastodon-history-inline-save-btn" data-history-id="${item.id}">保存(.txt)</button>
+            <button class="mastodon-history-inline-delete-btn" data-history-id="${item.id}">削除</button>
           </div>
         </div>
       `;
     }).join('');
 
     historyHtml += `
-      <div class="history-inline-footer">
-        <button id="history-inline-clear" class="history-inline-clear-btn">すべての履歴をクリア</button>
+      <div class="mastodon-history-inline-footer">
+        <button id="mastodon-history-inline-clear" class="mastodon-history-inline-clear-btn">すべての履歴をクリア</button>
       </div>
     `;
   }
 
-  viewerContent.innerHTML = historyHtml;
+  mainContent.innerHTML = historyHtml;
 
   // インライン履歴のイベントリスナーを設定
   setupPopupInlineHistoryListeners();
@@ -2566,10 +2561,10 @@ function showPopupHistoryInline() {
 
 // 検索フォームを表示する関数（popup版）
 function showPopupSearchForm() {
-  const viewerContent = document.getElementById('viewer-content');
+  const mainContent = document.getElementById('main-content');
 
   // 元の検索フォームを再構築
-  viewerContent.innerHTML = `
+  mainContent.innerHTML = `
       <div class="input-type-selector">
         <label>入力方式:</label>
         <div class="radio-group">
@@ -2651,7 +2646,7 @@ function showPopupSearchForm() {
 // インライン履歴のイベントリスナー設定（popup版）
 function setupPopupInlineHistoryListeners() {
   // 復元ボタン
-  document.querySelectorAll('.history-inline-restore-btn').forEach(btn => {
+  document.querySelectorAll('.mastodon-history-inline-restore-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
       restorePopupSearchFromInlineHistory(historyId);
@@ -2659,7 +2654,7 @@ function setupPopupInlineHistoryListeners() {
   });
 
   // 表示ボタン
-  document.querySelectorAll('.history-inline-view-btn').forEach(btn => {
+  document.querySelectorAll('.mastodon-history-inline-view-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
       viewPopupHistoryResultsInline(historyId);
@@ -2667,7 +2662,7 @@ function setupPopupInlineHistoryListeners() {
   });
 
   // 保存(.txt)ボタン
-  document.querySelectorAll('.history-inline-save-btn').forEach(btn => {
+  document.querySelectorAll('.mastodon-history-inline-save-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
       savePopupHistoryAsTxt(historyId);
@@ -2675,7 +2670,7 @@ function setupPopupInlineHistoryListeners() {
   });
 
   // 削除ボタン
-  document.querySelectorAll('.history-inline-delete-btn').forEach(btn => {
+  document.querySelectorAll('.mastodon-history-inline-delete-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
       deletePopupInlineHistoryItem(historyId);
@@ -2683,7 +2678,7 @@ function setupPopupInlineHistoryListeners() {
   });
 
   // すべてクリアボタン
-  const clearBtn = document.getElementById('history-inline-clear');
+  const clearBtn = document.getElementById('mastodon-history-inline-clear');
   if (clearBtn) {
     clearBtn.addEventListener('click', clearPopupInlineHistory);
   }
@@ -2838,19 +2833,19 @@ function restorePopupSearchFromInlineHistory(historyId) {
     switch(item.type) {
       case 'id':
         const postIdField = document.getElementById('postIdOrTime');
-        if (postIdField) postIdField.value = item.inputs.postId;
+        if (postIdField) postIdField.value = item.inputs?.postId || '';
         break;
 
       case 'user':
         const usernameField = document.getElementById('usernameField');
         const timeField = document.getElementById('timeField');
-        if (usernameField) usernameField.value = item.inputs.username;
-        if (item.inputs.timeInput && timeField) {
+        if (usernameField) usernameField.value = item.inputs?.username || '';
+        if (item.inputs?.timeInput && timeField) {
           timeField.value = item.inputs.timeInput;
         }
 
         // 検索モードを復元
-        if (item.inputs.searchMode) {
+        if (item.inputs?.searchMode) {
           const modeRadio = document.querySelector(`input[name="searchMode"][value="${item.inputs.searchMode}"]`);
           if (modeRadio) {
             modeRadio.checked = true;
@@ -2868,10 +2863,10 @@ function restorePopupSearchFromInlineHistory(historyId) {
 
       case 'time':
         const timeInputField = document.getElementById('postIdOrTime');
-        if (timeInputField) timeInputField.value = item.inputs.timeInput || '';
+        if (timeInputField) timeInputField.value = item.inputs?.timeInput || '';
 
         // 検索モードを復元
-        if (item.inputs.searchMode) {
+        if (item.inputs?.searchMode) {
           const modeRadio = document.querySelector(`input[name="searchMode"][value="${item.inputs.searchMode}"]`);
           if (modeRadio) {
             modeRadio.checked = true;

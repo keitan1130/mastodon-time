@@ -456,78 +456,80 @@
         </details>
       </div>
 
-      <div class="input-type-selector">
-        <label>入力方式:</label>
-        <div class="radio-group">
-          <label class="radio-label">
-            <input type="radio" name="inputType" value="time" checked>
-            <span>パブリック</span>
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="inputType" value="user">
-            <span>ユーザー名</span>
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="inputType" value="id">
-            <span>投稿ID</span>
-          </label>
+      <div id="main-content">
+        <div class="input-type-selector">
+          <label>入力方式:</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="inputType" value="time" checked>
+              <span>パブリック</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="inputType" value="user">
+              <span>ユーザー名</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="inputType" value="id">
+              <span>投稿ID</span>
+            </label>
+          </div>
         </div>
-      </div>
 
-      <div>
-        <label for="postIdOrTime">開始時刻:</label>
-        <input type="text" id="postIdOrTime" placeholder="入力してください">
-      </div>
-
-      <div id="userInput" style="display: none;">
-        <label for="usernameField">ユーザー名:</label>
-        <input type="text" id="usernameField" placeholder="@keitan または @keitan@mastodon.social">
-      </div>
-
-      <div id="timeInput" style="display: none;">
-        <label for="timeField">開始時刻:</label>
-        <input type="text" id="timeField" placeholder="YYYY-M-D HH:MM:SS">
-      </div>
-
-      <div id="searchModeSelector" style="display: none;">
-        <label>検索方式:</label>
-        <div class="radio-group">
-          <label class="radio-label">
-            <input type="radio" name="searchMode" value="timeRange" checked>
-            <span>時間範囲</span>
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="searchMode" value="postCount">
-            <span>投稿件数</span>
-          </label>
+        <div>
+          <label for="postIdOrTime">開始時刻:</label>
+          <input type="text" id="postIdOrTime" placeholder="入力してください">
         </div>
-      </div>
 
-      <div id="timeRangeSelector">
-        <label for="timeRange">時間:</label>
-        <input type="text" id="timeRange" placeholder="HH:MM:SS" style="width: 120px;">
-        <span>（開始時刻に追加）</span>
-      </div>
-
-      <div id="postCountSelector" style="display: none;">
-        <label for="postCount">取得件数:</label>
-        <input type="number" id="postCount" placeholder="200" min="-10000" max="10000" value="200" style="width: 80px;">
-        <span>件（+未来,-過去,最大10000件）</span>
-        <div id="searchTimeSelector" style="display: none; margin-top: 8px;">
-          <label for="searchTime">検索時間:</label>
-          <input type="text" id="searchTime" placeholder="24:00:00" value="24:00:00" style="width: 80px;">
-          <span>（HH:MM:SS形式、since_idとmax_idの間隔）</span>
+        <div id="userInput" style="display: none;">
+          <label for="usernameField">ユーザー名:</label>
+          <input type="text" id="usernameField" placeholder="@keitan または @keitan@mastodon.social">
         </div>
+
+        <div id="timeInput" style="display: none;">
+          <label for="timeField">開始時刻:</label>
+          <input type="text" id="timeField" placeholder="YYYY-M-D HH:MM:SS">
+        </div>
+
+        <div id="searchModeSelector" style="display: none;">
+          <label>検索方式:</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="searchMode" value="timeRange" checked>
+              <span>時間範囲</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="searchMode" value="postCount">
+              <span>投稿件数</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="timeRangeSelector">
+          <label for="timeRange">時間:</label>
+          <input type="text" id="timeRange" placeholder="HH:MM:SS" style="width: 120px;">
+          <span>（開始時刻に追加）</span>
+        </div>
+
+        <div id="postCountSelector" style="display: none;">
+          <label for="postCount">取得件数:</label>
+          <input type="number" id="postCount" placeholder="200" min="-10000" max="10000" value="200" style="width: 80px;">
+          <span>件（+未来,-過去,最大10000件）</span>
+          <div id="searchTimeSelector" style="display: none; margin-top: 8px;">
+            <label for="searchTime">検索時間:</label>
+            <input type="text" id="searchTime" placeholder="24:00:00" value="24:00:00" style="width: 80px;">
+            <span>（HH:MM:SS形式、since_idとmax_idの間隔）</span>
+          </div>
+        </div>
+
+        <div id="generatedTimeDisplay" style="display: none;">
+          <label for="generatedTime">終了時刻:</label>
+          <input type="text" id="generatedTime" placeholder="YYYY-M-D HH:MM:SS" style="width: 100%;">
+        </div>
+
+        <button id="fetchPost">取得</button>
+
+        <div id="result"></div>
       </div>
-
-      <div id="generatedTimeDisplay" style="display: none;">
-        <label for="generatedTime">終了時刻:</label>
-        <input type="text" id="generatedTime" placeholder="YYYY-M-D HH:MM:SS" style="width: 100%;">
-      </div>
-
-      <button id="fetchPost">取得</button>
-
-      <div id="result"></div>
     </div>
 
     <!-- 履歴モーダル -->
