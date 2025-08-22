@@ -3,9 +3,264 @@
 // グローバルユーティリティ関数
 function escapeHtml(s) {
   if (!s) return '';
-  const d = document.createElement('div'); 
-  d.textContent = s; 
-  return d.innerHTML; 
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// グローバルUI更新関数
+function updateInputUI() {
+  const type = document.querySelector('input[name="inputType"]:checked')?.value;
+  if (!type) return;
+  
+  const inputField = document.getElementById('postIdOrTime');
+  const timeRangeSelector = document.getElementById('timeRangeSelector');
+  const userInput = document.getElementById('userInput');
+  const timeInput = document.getElementById('timeInput');
+  const generatedTimeDisplay = document.getElementById('generatedTimeDisplay');
+  const searchModeSelector = document.getElementById('searchModeSelector');
+  const postCountSelector = document.getElementById('postCountSelector');
+
+  // すべての入力欄を非表示にする
+  if (inputField) inputField.style.display = 'none';
+  if (userInput) userInput.style.display = 'none';
+  if (timeInput) timeInput.style.display = 'none';
+  if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'none';
+  if (searchModeSelector) searchModeSelector.style.display = 'none';
+  if (timeRangeSelector) timeRangeSelector.style.display = 'none';
+  if (postCountSelector) postCountSelector.style.display = 'none';
+
+  if (type === 'id') {
+    if (inputField) inputField.style.display = 'block';
+    // 前回の入力を復元、なければデフォルト値
+    if (inputField) {
+      inputField.value = localStorage.getItem('mastodon-postId') || '114914719105992385';
+      inputField.placeholder = '投稿ID';
+    }
+
+    // ラベルを変更
+    const inputLabel = document.querySelector('label[for="postIdOrTime"]');
+    if (inputLabel) {
+      inputLabel.textContent = '投稿ID:';
+    }
+  } else if (type === 'user') {
+    if (userInput) userInput.style.display = 'block';
+    if (timeInput) timeInput.style.display = 'block';
+    if (searchModeSelector) searchModeSelector.style.display = 'block';
+    updateSearchModeUI();
+
+    // 前回の入力を復元
+    const usernameField = document.getElementById('usernameField');
+    const timeField = document.getElementById('timeField');
+    if (usernameField) {
+      usernameField.value = localStorage.getItem('mastodon-username') || '';
+    }
+    if (timeField) {
+      timeField.value = localStorage.getItem('mastodon-userTime') || '';
+    }
+  } else if (type === 'time') {
+    if (inputField) inputField.style.display = 'block';
+    if (searchModeSelector) searchModeSelector.style.display = 'block';
+    updateSearchModeUI();
+
+    // 前回の入力を復元、なければ現在時刻
+    if (inputField) {
+      inputField.value = localStorage.getItem('mastodon-timeRange') || getCurrentJSTDateString();
+      inputField.placeholder = 'YYYY-M-D HH:MM:SS';
+    }
+
+    // ラベルを変更
+    const inputLabel = document.querySelector('label[for="postIdOrTime"]');
+    if (inputLabel) {
+      inputLabel.textContent = '開始時刻:';
+    }
+  }
+}
+
+function updateSearchModeUI() {
+  const searchMode = document.querySelector('input[name="searchMode"]:checked')?.value;
+  if (!searchMode) return;
+  
+  const timeRangeSelector = document.getElementById('timeRangeSelector');
+  const postCountSelector = document.getElementById('postCountSelector');
+  const generatedTimeDisplay = document.getElementById('generatedTimeDisplay');
+
+  if (searchMode === 'timeRange') {
+    if (timeRangeSelector) timeRangeSelector.style.display = 'block';
+    if (postCountSelector) postCountSelector.style.display = 'none';
+    if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'block';
+    updateGeneratedTimeRange();
+  } else {
+    if (timeRangeSelector) timeRangeSelector.style.display = 'none';
+    if (postCountSelector) postCountSelector.style.display = 'block';
+    if (generatedTimeDisplay) generatedTimeDisplay.style.display = 'none';
+    updateSearchTimeVisibility();
+  }
+}
+
+function updateSearchTimeVisibility() {
+  const postCountField = document.getElementById('postCount');
+  const searchTimeSelector = document.getElementById('searchTimeSelector');
+
+  if (postCountField && searchTimeSelector) {
+    const postCount = parseInt(postCountField.value) || 0;
+    // 正の値（未来方向）の場合のみ検索時間フィールドを表示
+    if (postCount > 0) {
+      searchTimeSelector.style.display = 'block';
+    } else {
+      searchTimeSelector.style.display = 'none';
+    }
+  }
+}
+
+function updateGeneratedTimeRange() {
+  const type = document.querySelector('input[name="inputType"]:checked')?.value;
+  const searchMode = document.querySelector('input[name="searchMode"]:checked')?.value;
+  
+  if (searchMode !== 'timeRange') return;
+
+  let startTime = '';
+  let timeRange = '';
+
+  if (type === 'time') {
+    const inputField = document.getElementById('postIdOrTime');
+    startTime = inputField ? inputField.value : '';
+    const timeRangeField = document.getElementById('timeRange');
+    timeRange = timeRangeField ? timeRangeField.value : '';
+  } else if (type === 'user') {
+    const timeField = document.getElementById('timeField');
+    startTime = timeField ? timeField.value : '';
+    const timeRangeField = document.getElementById('timeRange');
+    timeRange = timeRangeField ? timeRangeField.value : '';
+  }
+
+  if (startTime && timeRange) {
+    try {
+      const startDate = parseJSTDate(startTime);
+      const [hours, minutes, seconds] = timeRange.split(':').map(Number);
+      const totalMinutes = (hours || 0) * 60 + (minutes || 0);
+      const totalSeconds = (seconds || 0);
+
+      const endDate = new Date(startDate);
+      endDate.setMinutes(endDate.getMinutes() + totalMinutes);
+      endDate.setSeconds(endDate.getSeconds() + totalSeconds);
+
+      const generatedTime = document.getElementById('generatedTime');
+      if (generatedTime) {
+        generatedTime.value = formatJSTDate(endDate);
+      }
+    } catch (error) {
+      console.error('Time parsing error:', error);
+    }
+  }
+}
+
+function getCurrentJSTDateString() {
+  const now = new Date();
+  const jstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const Y = jstTime.getUTCFullYear();
+  const M = (jstTime.getUTCMonth() + 1).toString().padStart(2, '0');
+  const D = jstTime.getUTCDate().toString().padStart(2, '0');
+  const H = jstTime.getUTCHours().toString().padStart(2, '0');
+  const Min = jstTime.getUTCMinutes().toString().padStart(2, '0');
+  const S = jstTime.getUTCSeconds().toString().padStart(2, '0');
+  return `${Y}-${M}-${D} ${H}:${Min}:${S}`;
+}
+
+function parseJSTDate(dateStr) {
+  const [datePart, timePart] = dateStr.split(' ');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute, second] = timePart.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, minute, second || 0);
+}
+
+function formatJSTDate(date) {
+  const Y = date.getFullYear();
+  const M = (date.getMonth() + 1).toString().padStart(2, '0');
+  const D = date.getDate().toString().padStart(2, '0');
+  const H = date.getHours().toString().padStart(2, '0');
+  const Min = date.getMinutes().toString().padStart(2, '0');
+  const S = date.getSeconds().toString().padStart(2, '0');
+  return `${Y}-${M}-${D} ${H}:${Min}:${S}`;
+}
+
+function updateTimeRangeFromEndTime() {
+  const generatedTimeField = document.getElementById('generatedTime');
+  const endTime = generatedTimeField ? generatedTimeField.value : '';
+  
+  if (!endTime) return;
+
+  const type = document.querySelector('input[name="inputType"]:checked')?.value;
+  let startTime = '';
+
+  if (type === 'time') {
+    const inputField = document.getElementById('postIdOrTime');
+    startTime = inputField ? inputField.value : '';
+  } else if (type === 'user') {
+    const timeField = document.getElementById('timeField');
+    startTime = timeField ? timeField.value : '';
+  }
+
+  if (startTime) {
+    try {
+      const startDate = parseJSTDate(startTime);
+      const endDate = parseJSTDate(endTime);
+      const diffMs = endDate - startDate;
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+      const hours = Math.floor(diffMinutes / 60);
+      const minutes = diffMinutes % 60;
+
+      const timeRangeField = document.getElementById('timeRange');
+      if (timeRangeField) {
+        timeRangeField.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${diffSeconds.toString().padStart(2, '0')}`;
+        localStorage.setItem('mastodon-timeRangeInput', timeRangeField.value);
+      }
+    } catch (error) {
+      console.error('Time calculation error:', error);
+    }
+  }
+}
+
+function handleSearch() {
+  // 検索ボタンがクリックされた時の処理
+  const fetchButton = document.getElementById('fetchPost');
+  if (fetchButton) {
+    fetchButton.click();
+  }
+}
+
+function restorePopupFormSettings() {
+  // 前回の入力タイプを復元
+  const savedInputType = localStorage.getItem('mastodon-popup-inputType');
+  if (savedInputType) {
+    const radio = document.querySelector(`input[name="inputType"][value="${savedInputType}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  // 前回の検索モードを復元
+  const savedSearchMode = localStorage.getItem('mastodon-popup-searchMode');
+  if (savedSearchMode) {
+    const radio = document.querySelector(`input[name="searchMode"][value="${savedSearchMode}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  // その他の入力値も復元
+  const timeRangeField = document.getElementById('timeRange');
+  if (timeRangeField) {
+    timeRangeField.value = localStorage.getItem('mastodon-timeRangeInput') || '1:00:00';
+  }
+
+  const postCountField = document.getElementById('postCount');
+  if (postCountField) {
+    postCountField.value = localStorage.getItem('mastodon-postCount') || '200';
+  }
+
+  const searchTimeField = document.getElementById('searchTime');
+  if (searchTimeField) {
+    searchTimeField.value = localStorage.getItem('mastodon-searchTime') || '24:00:00';
+  }
 }
 
 // インスタンスベースURLを取得する関数
