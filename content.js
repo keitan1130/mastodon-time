@@ -797,12 +797,36 @@ async function handleSearch() {
       }
 
       // 検索成功時に履歴を保存
+      // 時刻を正規化（YYYY-MM-DD HH:MM:SS形式）
+      let normalizedTimeInput = null;
+      if (timeInput) {
+        const timeMatch = timeInput.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+        if (timeMatch) {
+          const datePart = timeMatch[1];
+          let Y, Mo, D;
+
+          if (datePart.includes('-')) {
+            [Y, Mo, D] = datePart.split('-').map(Number);
+          } else {
+            [Y, Mo, D] = datePart.split('/').map(Number);
+          }
+
+          const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+          const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+          const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
+
+          // 正規化された時刻文字列を作成
+          normalizedTimeInput = `${Y}-${String(Mo).padStart(2, '0')}-${String(D).padStart(2, '0')} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+        }
+      }
+
       await saveSearchHistory('user', {
         username: cleanUsername,
-        timeInput,
+        timeInput: normalizedTimeInput,
         searchMode,
         postCount: searchMode === 'postCount' ? parseInt(document.getElementById('mastodonPostCount').value) || 200 : null,
-        timeRange: searchMode === 'timeRange' ? document.getElementById('mastodonTimeRange').value.trim() : null
+        timeRange: searchMode === 'timeRange' ? document.getElementById('mastodonTimeRange').value.trim() : null,
+        searchTime: searchMode === 'postCount' ? document.getElementById('mastodonSearchTime').value.trim() : null
       }, posts, targetInstanceInfo);
     } else if (type === 'time') {
       // パブリック（時間）モード
@@ -834,11 +858,29 @@ async function handleSearch() {
         const posts = await fetchPublicTimelineByCount(postCountInput, startTime);
         displayPosts(posts);
 
+        // 時刻を正規化（YYYY-MM-DD HH:MM:SS形式）
+        let normalizedTimeInput = null;
+        if (raw) {
+          const timeMatch = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+          if (timeMatch) {
+            const Y = Number(timeMatch[1]);
+            const Mo = Number(timeMatch[2]);
+            const D = Number(timeMatch[3]);
+            const hh = timeMatch[4] ? Number(timeMatch[4]) : 0;
+            const mm = timeMatch[5] ? Number(timeMatch[5]) : 0;
+            const ss = timeMatch[6] ? Number(timeMatch[6]) : 0;
+
+            // 正規化された時刻文字列を作成
+            normalizedTimeInput = `${Y}-${String(Mo).padStart(2, '0')}-${String(D).padStart(2, '0')} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+          }
+        }
+
         // 検索成功時に履歴を保存
         await saveSearchHistory('time', {
-          timeInput: raw,
+          timeInput: normalizedTimeInput,
           searchMode: 'postCount',
-          postCount: postCountInput
+          postCount: postCountInput,
+          searchTime: document.getElementById('mastodonSearchTime').value.trim()
         }, posts);
       } else {
         // 時間範囲指定モード（従来の処理）
@@ -899,9 +941,12 @@ async function handleSearch() {
         const posts = await fetchPublicTimelineInRange(startId, endId);
         displayPosts(posts);
 
+        // 時刻を正規化（YYYY-MM-DD HH:MM:SS形式）
+        const normalizedTimeInput = `${Y}-${String(Mo).padStart(2, '0')}-${String(D).padStart(2, '0')} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+
         // 検索成功時に履歴を保存
         await saveSearchHistory('time', {
-          timeInput: raw,
+          timeInput: normalizedTimeInput,
           searchMode: 'timeRange',
           timeRange: timeRangeInput,
           startTime: finalStartTime,
@@ -2331,6 +2376,7 @@ function showHistory() {
 
       let typeLabel = '';
       let inputSummary = '';
+      let timeDetails = '';
 
       switch(item.type) {
         case 'id':
@@ -2340,20 +2386,58 @@ function showHistory() {
         case 'user':
           typeLabel = 'ユーザー';
           inputSummary = `${item.inputs.username}`;
+
+          // 開始時刻を表示
           if (item.inputs.timeInput) {
-            inputSummary += ` (${item.inputs.timeInput})`;
+            timeDetails = `開始時刻: ${item.inputs.timeInput}`;
+
+            // 終了時刻を計算して表示
+            if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+              try {
+                const startTime = parseDateTime(item.inputs.timeInput);
+                const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
+                timeDetails += `\n終了時刻: ${formatDateTime(endTime)}`;
+              } catch (e) {
+                timeDetails += `\n終了時刻: 計算エラー`;
+              }
+            }
           }
+
           if (item.inputs.searchMode === 'postCount') {
             inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+            if (item.inputs.searchTime) {
+              inputSummary += ` (検索時間: ${item.inputs.searchTime})`;
+            }
           } else if (item.inputs.timeRange) {
             inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
           }
           break;
         case 'time':
           typeLabel = 'パブリック';
-          inputSummary = `${item.inputs.timeInput || '現在時刻'}`;
+          const startTimeValue = item.inputs.timeInput || '現在時刻';
+          inputSummary = startTimeValue;
+
+          // 開始時刻を表示
+          if (item.inputs.timeInput) {
+            timeDetails = `開始時刻: ${item.inputs.timeInput}`;
+
+            // 終了時刻を計算して表示
+            if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+              try {
+                const startTime = parseDateTime(item.inputs.timeInput);
+                const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
+                timeDetails += `\n終了時刻: ${formatDateTime(endTime)}`;
+              } catch (e) {
+                timeDetails += `\n終了時刻: 計算エラー`;
+              }
+            }
+          }
+
           if (item.inputs.searchMode === 'postCount') {
             inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+            if (item.inputs.searchTime) {
+              inputSummary += ` (検索時間: ${item.inputs.searchTime})`;
+            }
           } else if (item.inputs.timeRange) {
             inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
           }
@@ -2364,6 +2448,12 @@ function showHistory() {
           break;
       }
 
+      // インスタンス情報を追加
+      let instanceInfo = '';
+      if (item.instance) {
+        instanceInfo = `<div class="mastodon-history-instance">インスタンス: ${item.instance.name}</div>`;
+      }
+
       return `
         <div class="mastodon-history-item" data-history-id="${item.id}">
           <div class="mastodon-history-item-header">
@@ -2371,7 +2461,9 @@ function showHistory() {
             <span class="mastodon-history-time">${timeStr}</span>
           </div>
           <div class="mastodon-history-summary">${escapeHtml(inputSummary)}</div>
+          ${timeDetails ? `<div class="mastodon-history-time-details" style="white-space: pre-line; font-size: 12px; color: #888; margin: 4px 0;">${escapeHtml(timeDetails)}</div>` : ''}
           <div class="mastodon-history-result">結果: ${item.resultCount}件</div>
+          ${instanceInfo}
           <div class="mastodon-history-actions">
             <button class="mastodon-history-restore-btn" data-history-id="${item.id}">復元</button>
             <button class="mastodon-history-view-btn" data-history-id="${item.id}">表示</button>
@@ -2724,7 +2816,11 @@ function showHistoryInline() {
           }
           if (item.inputs.searchMode === 'postCount') {
             detailInfo += `\n入力件数: ${item.inputs.postCount}件`;
+            if (item.inputs.searchTime) {
+              detailInfo += `\n検索時間: ${item.inputs.searchTime}`;
+            }
           } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+            detailInfo += `\n時間範囲: ${item.inputs.timeRange}`;
             // 終了時刻を計算して表示
             if (item.inputs.timeInput && item.inputs.timeRange) {
               try {
@@ -2732,7 +2828,7 @@ function showHistoryInline() {
                 const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
                 detailInfo += `\n終了時刻: ${formatDateTime(endTime)}`;
               } catch (e) {
-                // エラーの場合は終了時刻を表示しない
+                detailInfo += `\n終了時刻: 計算エラー (${e.message})`;
               }
             }
           }
@@ -2747,7 +2843,11 @@ function showHistoryInline() {
 
           if (item.inputs.searchMode === 'postCount') {
             detailInfo += `\n入力件数: ${item.inputs.postCount}件`;
+            if (item.inputs.searchTime) {
+              detailInfo += `\n検索時間: ${item.inputs.searchTime}`;
+            }
           } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+            detailInfo += `\n時間範囲: ${item.inputs.timeRange}`;
             // 終了時刻を計算して表示
             if (item.inputs.timeInput && item.inputs.timeRange) {
               try {
@@ -2755,7 +2855,7 @@ function showHistoryInline() {
                 const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
                 detailInfo += `\n終了時刻: ${formatDateTime(endTime)}`;
               } catch (e) {
-                // エラーの場合は終了時刻を表示しない
+                detailInfo += `\n終了時刻: 計算エラー (${e.message})`;
               }
             }
           }
@@ -2766,7 +2866,7 @@ function showHistoryInline() {
           break;
       }
 
-      detailInfo += `\n件数: ${item.resultCount}件`;
+      detailInfo += `\n実際件数: ${item.resultCount}件`;
 
       // インスタンス情報が存在する場合は追加表示
       if (item.instance) {

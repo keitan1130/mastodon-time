@@ -137,6 +137,10 @@ function updateGeneratedTimeRange() {
   if (startTime && timeRange) {
     try {
       const startDate = parseJSTDate(startTime);
+      // timeRangeが文字列でない場合はエラーを防ぐ
+      if (!timeRange || typeof timeRange !== 'string') {
+        throw new Error('Invalid timeRange format');
+      }
       const [hours, minutes, seconds] = timeRange.split(':').map(Number);
       const totalMinutes = (hours || 0) * 60 + (minutes || 0);
       const totalSeconds = (seconds || 0);
@@ -168,7 +172,13 @@ function getCurrentJSTDateString() {
 }
 
 function parseJSTDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') {
+    throw new Error('Invalid date string');
+  }
   const [datePart, timePart] = dateStr.split(' ');
+  if (!datePart || !timePart) {
+    throw new Error('Invalid date format');
+  }
   const [year, month, day] = datePart.split('-').map(Number);
   const [hour, minute, second] = timePart.split(':').map(Number);
   return new Date(year, month - 1, day, hour, minute, second || 0);
@@ -794,6 +804,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // マイナス値もサポート: -1:30:00 → -1時間30分
     let hh = 0, mm = 0, ss = 0;
 
+    if (!timeInput || typeof timeInput !== 'string') {
+      throw new Error('Invalid time input');
+    }
+
     if (timeInput.includes(':')) {
       const parts = timeInput.split(':');
       hh = Number(parts[0]) || 0;
@@ -1189,12 +1203,36 @@ document.addEventListener('DOMContentLoaded', function() {
           }
 
           // 検索成功時に履歴を保存
+          // 時刻を正規化（YYYY-MM-DD HH:MM:SS形式）
+          let normalizedTimeInput = null;
+          if (timeInput) {
+            const timeMatch = timeInput.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+            if (timeMatch) {
+              const datePart = timeMatch[1];
+              let Y, Mo, D;
+
+              if (datePart.includes('-')) {
+                [Y, Mo, D] = datePart.split('-').map(Number);
+              } else {
+                [Y, Mo, D] = datePart.split('/').map(Number);
+              }
+
+              const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+              const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+              const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
+
+              // 正規化された時刻文字列を作成
+              normalizedTimeInput = `${Y}-${String(Mo).padStart(2, '0')}-${String(D).padStart(2, '0')} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+            }
+          }
+
           await savePopupSearchHistory('user', {
             username: cleanUsername,
-            timeInput,
+            timeInput: normalizedTimeInput,
             searchMode,
             postCount: searchMode === 'postCount' ? parseInt(document.getElementById('postCount').value) || 200 : null,
-            timeRange: searchMode === 'timeRange' ? document.getElementById('timeRange').value.trim() : null
+            timeRange: searchMode === 'timeRange' ? document.getElementById('timeRange').value.trim() : null,
+            searchTime: searchMode === 'postCount' ? document.getElementById('searchTime').value.trim() : null
           }, posts, targetInstanceInfo);
         } else {
           // 時間範囲指定モード - 従来の処理
@@ -1291,11 +1329,35 @@ document.addEventListener('DOMContentLoaded', function() {
           const posts = await fetchPublicTimelineByCount(postCountInput, startTime);
           displayPosts(posts);
 
+          // 時刻を正規化（YYYY-MM-DD HH:MM:SS形式）
+          let normalizedTimeInput = null;
+          if (raw) {
+            const timeMatch = raw.match(/^(\d{4}[-/]\d{1,2}[-/]\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+            if (timeMatch) {
+              const datePart = timeMatch[1];
+              let Y, Mo, D;
+
+              if (datePart.includes('-')) {
+                [Y, Mo, D] = datePart.split('-').map(Number);
+              } else {
+                [Y, Mo, D] = datePart.split('/').map(Number);
+              }
+
+              const hh = timeMatch[2] ? Number(timeMatch[2]) : 0;
+              const mm = timeMatch[3] ? Number(timeMatch[3]) : 0;
+              const ss = timeMatch[4] ? Number(timeMatch[4]) : 0;
+
+              // 正規化された時刻文字列を作成
+              normalizedTimeInput = `${Y}-${String(Mo).padStart(2, '0')}-${String(D).padStart(2, '0')} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+            }
+          }
+
           // 検索成功時に履歴を保存
           await savePopupSearchHistory('time', {
-            timeInput: raw,
+            timeInput: normalizedTimeInput,
             searchMode: 'postCount',
-            postCount: postCountInput
+            postCount: postCountInput,
+            searchTime: document.getElementById('searchTime').value.trim()
           }, posts);
         } else {
           // 時間範囲検索（従来の処理）
@@ -1359,9 +1421,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const posts = await fetchPublicTimelineInRange(startId, endId);
         displayPosts(posts);
 
+        // 時刻を正規化（YYYY-MM-DD HH:MM:SS形式）
+        const normalizedTimeInput = `${Y}-${String(Mo).padStart(2, '0')}-${String(D).padStart(2, '0')} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+
         // 検索成功時に履歴を保存
         await savePopupSearchHistory('time', {
-          timeInput: raw,
+          timeInput: normalizedTimeInput,
           searchMode: 'timeRange',
           timeRange: timeRangeInput,
           startTime: finalStartTime,
@@ -2603,6 +2668,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 時間文字列（HH:MM:SS）をミリ秒に変換する関数
   function parseSearchTimeToMs(timeStr) {
+    if (!timeStr || typeof timeStr !== 'string') {
+      return 86400000; // デフォルト24時間
+    }
     const parts = timeStr.split(':');
     if (parts.length !== 3) return 86400000; // デフォルト24時間
 
@@ -2820,6 +2888,64 @@ function initializeInstanceSettings() {
   });
 }
 
+// インスタンス設定を保存する関数
+async function saveInstanceSetting(url) {
+  const instanceStatus = document.getElementById('instanceStatus');
+  const instanceNameSpan = document.getElementById('instanceName');
+
+  if (!url) {
+    if (instanceStatus) {
+      instanceStatus.textContent = '❌ URLを入力してください';
+      instanceStatus.style.color = '#ff6b6b';
+    }
+    return;
+  }
+
+  try {
+    // URLの形式をチェック
+    const urlObj = new URL(url);
+    if (urlObj.protocol !== 'https:') {
+      throw new Error('HTTPSのURLを使用してください');
+    }
+
+    // Mastodonインスタンスかチェック
+    const instanceInfo = await fetch(`${url}/api/v1/instance`);
+    if (!instanceInfo.ok) {
+      throw new Error('Mastodonインスタンスではないようです');
+    }
+
+    const info = await instanceInfo.json();
+    const instanceDisplayName = info.title || info.short_description || new URL(url).hostname;
+
+    // インスタンスURLと名前を保存
+    chrome.storage.local.set({
+      instanceUrl: url,
+      instanceName: instanceDisplayName
+    }, () => {
+      if (instanceStatus) {
+        instanceStatus.textContent = `✅ ${instanceDisplayName}に設定しました`;
+        instanceStatus.style.color = '#4caf50';
+
+        // 数秒後にメッセージを消す
+        setTimeout(() => {
+          instanceStatus.textContent = '';
+        }, 3000);
+      }
+
+      // インスタンス名を即座に表示
+      if (instanceNameSpan) {
+        instanceNameSpan.textContent = instanceDisplayName;
+      }
+    });
+
+  } catch (error) {
+    if (instanceStatus) {
+      instanceStatus.textContent = `❌ ${error.message}`;
+      instanceStatus.style.color = '#ff6b6b';
+    }
+  }
+}
+
 // 日時解析・フォーマット用ユーティリティ関数（グローバルスコープ）
 function parseDateTime(input) {
   // 混在区切り文字にも対応した正規表現
@@ -2840,6 +2966,10 @@ function parseAndAddTime(startDate, timeInput) {
   // 10 → 10:00:00, 10:30 → 10:30:00, 10:30:20 → 10:30:20 の形式を解析
   // マイナス値もサポート: -1:30:00 → -1時間30分
   let hh = 0, mm = 0, ss = 0;
+
+  if (!timeInput || typeof timeInput !== 'string') {
+    throw new Error('Invalid time input');
+  }
 
   if (timeInput.includes(':')) {
     const parts = timeInput.split(':');
@@ -2928,7 +3058,9 @@ async function savePopupSearchHistory(type, inputs, posts, targetInstanceInfo = 
   localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
 
   // 履歴ボタンを更新 - 履歴表示時に自動更新されるため不要
-}function getPopupSearchHistory() {
+}
+
+function getPopupSearchHistory() {
   try {
     const history = localStorage.getItem('mastodon-popup-search-history');
     return history ? JSON.parse(history) : [];
@@ -2954,6 +3086,7 @@ function showPopupHistory() {
 
       let typeLabel = '';
       let inputSummary = '';
+      let timeDetails = '';
 
       switch(item.type) {
         case 'id':
@@ -2963,20 +3096,58 @@ function showPopupHistory() {
         case 'user':
           typeLabel = 'ユーザー';
           inputSummary = `${item.inputs.username}`;
+
+          // 開始時刻を表示
           if (item.inputs.timeInput) {
-            inputSummary += ` (${item.inputs.timeInput})`;
+            timeDetails = `開始時刻: ${item.inputs.timeInput}`;
+
+            // 終了時刻を計算して表示
+            if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+              try {
+                const startTime = parseDateTime(item.inputs.timeInput);
+                const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
+                timeDetails += `\n終了時刻: ${formatDateTime(endTime)}`;
+              } catch (e) {
+                timeDetails += `\n終了時刻: 計算エラー`;
+              }
+            }
           }
+
           if (item.inputs.searchMode === 'postCount') {
             inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+            if (item.inputs.searchTime) {
+              inputSummary += ` (検索時間: ${item.inputs.searchTime})`;
+            }
           } else if (item.inputs.timeRange) {
             inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
           }
           break;
         case 'time':
           typeLabel = 'パブリック';
-          inputSummary = `${item.inputs.timeInput || '現在時刻'}`;
+          const startTimeValue = item.inputs.timeInput || '現在時刻';
+          inputSummary = startTimeValue;
+
+          // 開始時刻を表示
+          if (item.inputs.timeInput) {
+            timeDetails = `開始時刻: ${item.inputs.timeInput}`;
+
+            // 終了時刻を計算して表示
+            if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+              try {
+                const startTime = parseDateTime(item.inputs.timeInput);
+                const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
+                timeDetails += `\n終了時刻: ${formatDateTime(endTime)}`;
+              } catch (e) {
+                timeDetails += `\n終了時刻: 計算エラー`;
+              }
+            }
+          }
+
           if (item.inputs.searchMode === 'postCount') {
             inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+            if (item.inputs.searchTime) {
+              inputSummary += ` (検索時間: ${item.inputs.searchTime})`;
+            }
           } else if (item.inputs.timeRange) {
             inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
           }
@@ -2987,6 +3158,12 @@ function showPopupHistory() {
           break;
       }
 
+      // インスタンス情報を追加
+      let instanceInfo = '';
+      if (item.instance) {
+        instanceInfo = `<div class="history-instance">インスタンス: ${item.instance.name}</div>`;
+      }
+
       return `
         <div class="history-item" data-history-id="${item.id}">
           <div class="history-item-header">
@@ -2994,7 +3171,9 @@ function showPopupHistory() {
             <span class="history-time">${timeStr}</span>
           </div>
           <div class="history-summary">${escapeHtml(inputSummary)}</div>
+          ${timeDetails ? `<div class="history-time-details" style="white-space: pre-line; font-size: 12px; color: #888; margin: 4px 0;">${escapeHtml(timeDetails)}</div>` : ''}
           <div class="history-result">結果: ${item.resultCount}件</div>
+          ${instanceInfo}
           <div class="history-actions">
             <button class="history-restore-btn" data-history-id="${item.id}">復元</button>
             <button class="history-view-btn" data-history-id="${item.id}">表示</button>
@@ -3308,7 +3487,11 @@ function showPopupHistoryInline() {
           }
           if (item.inputs?.searchMode === 'postCount') {
             detailInfo += `\n入力件数: ${item.inputs.postCount || 0}件`;
+            if (item.inputs?.searchTime) {
+              detailInfo += `\n検索時間: ${item.inputs.searchTime}`;
+            }
           } else if (item.inputs?.searchMode === 'timeRange' && item.inputs?.timeRange) {
+            detailInfo += `\n時間範囲: ${item.inputs.timeRange}`;
             // 終了時刻を計算して表示
             if (item.inputs?.timeInput && item.inputs?.timeRange) {
               try {
@@ -3316,11 +3499,11 @@ function showPopupHistoryInline() {
                 const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
                 detailInfo += `\n終了時刻: ${formatDateTime(endTime)}`;
               } catch (e) {
-                // エラーの場合は終了時刻を表示しない
+                detailInfo += `\n終了時刻: 計算エラー (${e.message})`;
               }
             }
           }
-          detailInfo += `\n件数: ${item.resultCount || 0}件`;
+          detailInfo += `\n実際件数: ${item.resultCount || 0}件`;
           break;
         case 'time':
           typeLabel = 'パブリック';
@@ -3332,7 +3515,11 @@ function showPopupHistoryInline() {
 
           if (item.inputs?.searchMode === 'postCount') {
             detailInfo += `\n入力件数: ${item.inputs.postCount || 0}件`;
+            if (item.inputs?.searchTime) {
+              detailInfo += `\n検索時間: ${item.inputs.searchTime}`;
+            }
           } else if (item.inputs?.searchMode === 'timeRange' && item.inputs?.timeRange) {
+            detailInfo += `\n時間範囲: ${item.inputs.timeRange}`;
             // 終了時刻を計算して表示
             if (item.inputs?.timeInput && item.inputs?.timeRange) {
               try {
@@ -3340,11 +3527,11 @@ function showPopupHistoryInline() {
                 const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
                 detailInfo += `\n終了時刻: ${formatDateTime(endTime)}`;
               } catch (e) {
-                // エラーの場合は終了時刻を表示しない
+                detailInfo += `\n終了時刻: 計算エラー (${e.message})`;
               }
             }
           }
-          detailInfo += `\n件数: ${item.resultCount || 0}件`;
+          detailInfo += `\n実際件数: ${item.resultCount || 0}件`;
           break;
       }
 
@@ -3389,6 +3576,18 @@ function showPopupSearchForm() {
 
   // 元の検索フォームを再構築
   mainContent.innerHTML = `
+      <!-- インスタンス設定 -->
+      <div class="mastodon-input-group">
+        <label for="instanceUrl">
+          インスタンス: <span id="instanceName" class="mastodon-instance-name">mastodon.compositecomputer.club</span>
+        </label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="url" id="instanceUrl" placeholder="https://mastodon.social" value="https://mastodon.compositecomputer.club" style="flex: 1;">
+          <button id="saveInstance" class="mastodon-instance-btn">保存</button>
+        </div>
+        <div id="instanceStatus" class="mastodon-instance-status"></div>
+      </div>
+
       <div class="mastodon-input-type-selector">
         <label>入力方式:</label>
         <div class="mastodon-radio-group">
@@ -3593,10 +3792,35 @@ function setupPopupSearchFormListeners() {
     fetchBtn.addEventListener('click', handleSearch);
   }
 
+  // インスタンス設定のイベントリスナーも再設定
+  const instanceUrlField = document.getElementById('instanceUrl');
+  const saveInstanceBtn = document.getElementById('saveInstance');
+
+  if (instanceUrlField) {
+    instanceUrlField.addEventListener('input', function() {
+      const instanceStatus = document.getElementById('instanceStatus');
+      if (instanceStatus) {
+        instanceStatus.textContent = '';
+      }
+    });
+  }
+
+  if (saveInstanceBtn) {
+    saveInstanceBtn.addEventListener('click', function() {
+      const instanceUrl = document.getElementById('instanceUrl').value.trim();
+      if (instanceUrl) {
+        saveInstanceSetting(instanceUrl);
+      }
+    });
+  }
+
   // 設定を復元してUIを更新
   restorePopupFormSettings();
   updateInputUI();
   updateSearchModeUI();
+
+  // インスタンス設定も復元
+  restoreInstanceSettings();
 }
 
 // フォーム設定復元（popup版）
@@ -3631,6 +3855,26 @@ function restorePopupFormSettings() {
     const postCountField = document.getElementById('postCount');
     if (postCountField) postCountField.value = savedPostCount;
   }
+}
+
+// インスタンス設定を復元する関数
+function restoreInstanceSettings() {
+  const instanceUrlField = document.getElementById('instanceUrl');
+  const instanceNameSpan = document.getElementById('instanceName');
+
+  if (!instanceUrlField || !instanceNameSpan) return;
+
+  chrome.storage.local.get(['instanceUrl', 'instanceName'], (result) => {
+    if (result.instanceUrl) {
+      instanceUrlField.value = result.instanceUrl;
+      // 保存された名前があればそれを使用
+      if (result.instanceName) {
+        instanceNameSpan.textContent = result.instanceName;
+      } else {
+        updateInstanceName(result.instanceUrl);
+      }
+    }
+  });
 }
 
 // インライン履歴から復元（popup版）
