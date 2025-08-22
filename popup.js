@@ -267,7 +267,7 @@ function restorePopupFormSettings() {
 function displayPosts(posts) {
   const resultDiv = document.getElementById('result');
   if (!resultDiv) return;
-  
+
   if (!posts.length) {
     resultDiv.innerHTML = '<div class="no-results">該当する投稿がありません</div>';
     return;
@@ -364,10 +364,10 @@ function displayPosts(posts) {
   }
 }
 
-function showError(msg) { 
+function showError(msg) {
   const resultDiv = document.getElementById('result');
   if (resultDiv) {
-    resultDiv.innerHTML = `<div class="error">${escapeHtml(msg)}</div>`; 
+    resultDiv.innerHTML = `<div class="error">${escapeHtml(msg)}</div>`;
   }
 }
 
@@ -454,87 +454,97 @@ function showPostPreview(element, post) {
     background: #1a1e27;
     border: 1px solid #393f4f;
     border-radius: 8px;
-    padding: 15px;
-    max-width: 400px;
+    padding: 12px;
+    max-width: 280px;
+    max-height: 200px;
+    overflow-y: auto;
     z-index: 10000;
     color: #fff;
     font-family: system-ui, -apple-system, sans-serif;
-    font-size: 13px;
-    line-height: 1.4;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 12px;
+    line-height: 1.3;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    word-wrap: break-word;
   `;
 
-  // コンテンツの作成
+  // コンテンツの作成（短縮版）
   let content = '';
   
   if (postInfo.isBoost) {
-    content += `<div style="color: #6364ff; margin-bottom: 8px; font-size: 12px;">
-      <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong> がブーストしました
+    content += `<div style="color: #6364ff; margin-bottom: 6px; font-size: 11px;">
+      <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong>
     </div>`;
   }
 
-  content += `<div style="font-weight: bold; margin-bottom: 5px; color: #fff;">
+  content += `<div style="font-weight: bold; margin-bottom: 4px; color: #fff; font-size: 12px;">
     ${escapeHtml(postInfo.displayUser)}
   </div>`;
 
-  content += `<div style="margin-bottom: 8px; color: #9baec8; font-size: 12px;">
+  content += `<div style="margin-bottom: 6px; color: #9baec8; font-size: 10px;">
     ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}
   </div>`;
 
-  const displayContent = postInfo.displayContent.slice(0, 200);
-  content += `<div style="margin-bottom: 10px;">
-    ${escapeHtml(displayContent)}${postInfo.displayContent.length > 200 ? '...' : ''}
+  // 短縮されたコンテンツ
+  const displayContent = postInfo.displayContent.slice(0, 150);
+  content += `<div style="margin-bottom: 8px;">
+    ${escapeHtml(displayContent)}${postInfo.displayContent.length > 150 ? '...' : ''}
   </div>`;
 
-  // メディア情報
+  // メディア情報（簡略化）
   if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
-    const mediaTypes = postInfo.mediaAttachments.map(m => m.type).join(', ');
-    content += `<div style="color: #6364ff; font-size: 12px; margin-top: 8px;">
-      📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)
+    content += `<div style="color: #6364ff; font-size: 10px;">
+      📎 ${postInfo.mediaAttachments.length}件
     </div>`;
   }
-
-  // カード情報
-  if (postInfo.card) {
-    content += `<div style="color: #9baec8; font-size: 11px; margin-top: 5px;">
-      🔗 ${escapeHtml(postInfo.card.title || postInfo.card.url || '')}
-    </div>`;
-  }
-
-  content += `<div style="margin-top: 10px; font-size: 11px; color: #9baec8;">
-    クリックで開く
-  </div>`;
 
   tooltip.innerHTML = content;
   document.body.appendChild(tooltip);
 
-  // 位置調整
+  // popup用の位置調整（より制限的）
   const rect = element.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
   
-  let left = rect.left + rect.width + 10;
+  // popupの境界を考慮
+  const popupWidth = window.innerWidth;
+  const popupHeight = window.innerHeight;
+  
+  let left = rect.left + rect.width + 8;
   let top = rect.top;
 
-  // 画面右端を超える場合は左側に表示
-  if (left + tooltipRect.width > window.innerWidth) {
-    left = rect.left - tooltipRect.width - 10;
+  // 右端を超える場合は左側に表示
+  if (left + tooltipRect.width > popupWidth - 5) {
+    left = rect.left - tooltipRect.width - 8;
+    
+    // それでも左端を超える場合は要素の上に表示
+    if (left < 5) {
+      left = Math.max(5, (popupWidth - tooltipRect.width) / 2);
+      top = rect.top - tooltipRect.height - 8;
+    }
   }
 
-  // 画面下端を超える場合は位置を調整
-  if (top + tooltipRect.height > window.innerHeight) {
-    top = window.innerHeight - tooltipRect.height - 10;
+  // 下端を超える場合は上側に表示
+  if (top + tooltipRect.height > popupHeight - 5) {
+    top = rect.top - tooltipRect.height - 8;
   }
 
-  // 画面上端を下回る場合
-  if (top < 10) {
-    top = 10;
+  // 上端を下回る場合は画面内に収める
+  if (top < 5) {
+    top = 5;
+  }
+
+  // 左端を下回る場合
+  if (left < 5) {
+    left = 5;
+  }
+
+  // 右端を超える場合（最終調整）
+  if (left + tooltipRect.width > popupWidth - 5) {
+    left = popupWidth - tooltipRect.width - 5;
   }
 
   tooltip.style.left = `${left}px`;
   tooltip.style.top = `${top}px`;
-}
-
-function hidePostPreview() {
+}function hidePostPreview() {
   const existing = document.getElementById('mastodon-post-tooltip');
   if (existing) {
     existing.remove();
@@ -549,7 +559,7 @@ function downloadPostsAsTxt(posts) {
   posts.forEach((post, index) => {
     const postInfo = getPostDisplayInfo(post);
     content += `【${index + 1}】\n`;
-    
+
     if (postInfo.isBoost) {
       content += `ブースト: ${postInfo.boosterUser} (${postInfo.boosterUsername})\n`;
       content += `ブースト日時: ${new Date(postInfo.boostTime).toLocaleString('ja-JP')}\n`;
@@ -559,21 +569,21 @@ function downloadPostsAsTxt(posts) {
       content += `投稿者: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
       content += `投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
     }
-    
+
     content += `URL: ${postInfo.displayUrl}\n`;
     content += `内容:\n${postInfo.displayContent}\n`;
-    
+
     if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
       content += `添付ファイル: ${postInfo.mediaAttachments.length}件\n`;
       postInfo.mediaAttachments.forEach(media => {
         content += `  - ${media.type}: ${media.url}\n`;
       });
     }
-    
+
     if (postInfo.card) {
       content += `リンクカード: ${postInfo.card.title || ''} - ${postInfo.card.url || ''}\n`;
     }
-    
+
     content += '\n' + '-'.repeat(30) + '\n\n';
   });
 
