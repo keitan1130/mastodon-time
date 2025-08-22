@@ -469,7 +469,7 @@ function showPostPreview(element, post) {
 
   // コンテンツの作成
   let content = '';
-  
+
   if (postInfo.isBoost) {
     content += `<div style="color: #6364ff; margin-bottom: 8px; font-size: 12px;">
       <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong> がブーストしました
@@ -514,7 +514,7 @@ function showPostPreview(element, post) {
   // 位置調整（contentと同じアルゴリズム）
   const rect = element.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
-  
+
   let left = rect.left + rect.width + 10;
   let top = rect.top;
 
