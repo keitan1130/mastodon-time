@@ -280,7 +280,7 @@ function setupEventListeners() {
   });
 
   updateInputUI();
-  updateHistoryButton(); // 履歴ボタンを初期化
+  // updateHistoryButton(); // 履歴数は履歴表示時に動的に更新されるため不要
 }
 
 function updateSearchModeUI() {
@@ -2167,16 +2167,20 @@ function downloadPostsAsTxt(posts) {
 }
 
 // 履歴管理機能
-function updateHistoryButton() {
-  const historyBtn = document.getElementById('mastodon-history-btn');
-  if (historyBtn) {
-    const history = getSearchHistory();
-    const count = history.length;
-    historyBtn.textContent = `履歴 (${count}/10)`;
-  }
-}
-
+// updateHistoryButton関数は不要（履歴タイトルに直接表示するため）
 function saveSearchHistory(type, inputs, posts) {
+  // 空の検索結果や無効なデータは履歴に保存しない
+  if (!posts || posts.length === 0) {
+    console.log('履歴保存をスキップ: 空の検索結果');
+    return;
+  }
+
+  // inputsが空またはundefinedの場合も保存しない
+  if (!inputs || Object.keys(inputs).length === 0) {
+    console.log('履歴保存をスキップ: 無効な入力データ');
+    return;
+  }
+
   const history = getSearchHistory();
 
   const historyItem = {
@@ -2199,11 +2203,8 @@ function saveSearchHistory(type, inputs, posts) {
   // ローカルストレージに保存
   localStorage.setItem('mastodon-content-search-history', JSON.stringify(history));
 
-  // 履歴ボタンを更新
-  updateHistoryButton();
-}
-
-function getSearchHistory() {
+  // 履歴ボタンを更新 - 履歴表示時に自動更新されるため不要
+}function getSearchHistory() {
   try {
     const history = localStorage.getItem('mastodon-content-search-history');
     return history ? JSON.parse(history) : [];
@@ -2255,6 +2256,10 @@ function showHistory() {
             inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
           }
           break;
+        case 'instance':
+          typeLabel = 'インスタンス';
+          inputSummary = `${item.inputs.instanceName} (${item.inputs.instanceUrl})`;
+          break;
       }
 
       return `
@@ -2290,8 +2295,7 @@ function hideHistory() {
 function clearHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
     localStorage.removeItem('mastodon-content-search-history');
-    showHistory(); // 履歴表示を更新
-    updateHistoryButton(); // 履歴ボタンを更新
+    showHistory(); // 履歴表示を更新（数も自動更新される）
   }
 }
 
@@ -2429,8 +2433,7 @@ function deleteHistoryItem(historyId) {
     let history = getSearchHistory();
     history = history.filter(h => h.id !== historyId);
     localStorage.setItem('mastodon-content-search-history', JSON.stringify(history));
-    showHistory(); // 履歴表示を更新
-    updateHistoryButton(); // 履歴ボタンを更新
+    showHistory(); // 履歴表示を更新（数も自動更新される）
   }
 }
 
@@ -2551,50 +2554,78 @@ function showHistoryInline() {
   if (history.length === 0) {
     historyHtml = '<div class="mastodon-no-history">履歴がありません</div>';
   } else {
-    historyHtml = '<div class="mastodon-history-inline-title">検索履歴</div>';
+    historyHtml = `<div class="mastodon-history-inline-title">検索履歴 <span class="mastodon-history-count">(${history.length}/10)</span></div>`;
     historyHtml += history.map(item => {
       const date = new Date(item.timestamp);
       const timeStr = date.toLocaleString('ja-JP');
 
       let typeLabel = '';
-      let inputSummary = '';
+      let detailInfo = '';
 
       switch(item.type) {
         case 'id':
           typeLabel = '投稿ID';
-          inputSummary = `ID: ${item.inputs.postId}`;
+          detailInfo = `投稿ID: ${item.inputs.postId}`;
           break;
         case 'user':
           typeLabel = 'ユーザー';
-          inputSummary = `${item.inputs.username}`;
+          detailInfo = `ユーザー: ${item.inputs.username}`;
           if (item.inputs.timeInput) {
-            inputSummary += ` (${item.inputs.timeInput})`;
+            detailInfo += `\n開始時刻: ${item.inputs.timeInput}`;
           }
           if (item.inputs.searchMode === 'postCount') {
-            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
-          } else if (item.inputs.timeRange) {
-            inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
+            detailInfo += `\n入力件数: ${item.inputs.postCount}件`;
+          } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+            // 終了時刻を計算して表示
+            if (item.inputs.timeInput && item.inputs.timeRange) {
+              try {
+                const startTime = parseDateTime(item.inputs.timeInput);
+                const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
+                detailInfo += `\n終了時刻: ${formatDateTime(endTime)}`;
+              } catch (e) {
+                // エラーの場合は終了時刻を表示しない
+              }
+            }
           }
           break;
         case 'time':
           typeLabel = 'パブリック';
-          inputSummary = `${item.inputs.timeInput || '現在時刻'}`;
+          if (item.inputs.timeInput) {
+            detailInfo = `開始時刻: ${item.inputs.timeInput}`;
+          } else {
+            detailInfo = '開始時刻: 現在時刻';
+          }
+
           if (item.inputs.searchMode === 'postCount') {
-            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
-          } else if (item.inputs.timeRange) {
-            inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
+            detailInfo += `\n入力件数: ${item.inputs.postCount}件`;
+          } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+            // 終了時刻を計算して表示
+            if (item.inputs.timeInput && item.inputs.timeRange) {
+              try {
+                const startTime = parseDateTime(item.inputs.timeInput);
+                const endTime = parseAndAddTime(startTime, item.inputs.timeRange);
+                detailInfo += `\n終了時刻: ${formatDateTime(endTime)}`;
+              } catch (e) {
+                // エラーの場合は終了時刻を表示しない
+              }
+            }
           }
           break;
+        case 'instance':
+          typeLabel = 'インスタンス';
+          detailInfo = `インスタンス名: ${item.inputs.instanceName}\nURL: ${item.inputs.instanceUrl}\n設定日時: ${new Date(item.timestamp).toLocaleString('ja-JP')}`;
+          break;
       }
+
+      detailInfo += `\n件数: ${item.resultCount}件`;
 
       return `
         <div class="mastodon-history-inline-item" data-history-id="${item.id}">
           <div class="mastodon-history-inline-header">
-            <span class="mastodon-history-inline-type">[${typeLabel}]</span>
+            <span class="mastodon-history-inline-type">${typeLabel}</span>
             <span class="mastodon-history-inline-time">${timeStr}</span>
           </div>
-          <div class="mastodon-history-inline-summary">${escapeHtml(inputSummary)}</div>
-          <div class="mastodon-history-inline-result">結果: ${item.resultCount}件</div>
+          <div class="mastodon-history-inline-details" style="white-space: pre-line; font-size: 13px; color: #9baec8; margin: 8px 0; background: rgba(57, 63, 79, 0.3); padding: 8px; border-radius: 4px; border-left: 3px solid #6364ff;">${escapeHtml(detailInfo)}</div>
           <div class="mastodon-history-inline-actions">
             <button class="mastodon-history-inline-restore-btn" data-history-id="${item.id}">復元</button>
             <button class="mastodon-history-inline-view-btn" data-history-id="${item.id}">表示</button>
@@ -2943,6 +2974,10 @@ function restoreSearchFromInlineHistory(historyId) {
             if (timeRangeSelect) timeRangeSelect.value = item.inputs.timeRange;
           }
         }
+        break;
+      case 'instance':
+        // インスタンス設定は復元できないが、メッセージを表示
+        alert(`インスタンス設定: ${item.inputs.instanceName} (${item.inputs.instanceUrl})\nこの設定は復元できませんが、設定履歴として保存されています。`);
         break;
     }
 

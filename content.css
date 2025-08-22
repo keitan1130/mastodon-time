@@ -65,6 +65,13 @@
   background: #5853d4;
 }
 
+/* 履歴数表示のスタイル */
+.mastodon-history-count {
+  font-size: 12px;
+  color: #9baec8;
+  font-weight: normal;
+}
+
 .mastodon-toggle-btn {
   background: none;
   border: 1px solid transparent;
