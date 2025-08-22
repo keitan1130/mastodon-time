@@ -12,7 +12,7 @@ function escapeHtml(s) {
 function updateInputUI() {
   const type = document.querySelector('input[name="inputType"]:checked')?.value;
   if (!type) return;
-  
+
   const inputField = document.getElementById('postIdOrTime');
   const timeRangeSelector = document.getElementById('timeRangeSelector');
   const userInput = document.getElementById('userInput');
@@ -80,7 +80,7 @@ function updateInputUI() {
 function updateSearchModeUI() {
   const searchMode = document.querySelector('input[name="searchMode"]:checked')?.value;
   if (!searchMode) return;
-  
+
   const timeRangeSelector = document.getElementById('timeRangeSelector');
   const postCountSelector = document.getElementById('postCountSelector');
   const generatedTimeDisplay = document.getElementById('generatedTimeDisplay');
@@ -116,7 +116,7 @@ function updateSearchTimeVisibility() {
 function updateGeneratedTimeRange() {
   const type = document.querySelector('input[name="inputType"]:checked')?.value;
   const searchMode = document.querySelector('input[name="searchMode"]:checked')?.value;
-  
+
   if (searchMode !== 'timeRange') return;
 
   let startTime = '';
@@ -187,7 +187,7 @@ function formatJSTDate(date) {
 function updateTimeRangeFromEndTime() {
   const generatedTimeField = document.getElementById('generatedTime');
   const endTime = generatedTimeField ? generatedTimeField.value : '';
-  
+
   if (!endTime) return;
 
   const type = document.querySelector('input[name="inputType"]:checked')?.value;
@@ -261,6 +261,331 @@ function restorePopupFormSettings() {
   if (searchTimeField) {
     searchTimeField.value = localStorage.getItem('mastodon-searchTime') || '24:00:00';
   }
+}
+
+// グローバル表示関数
+function displayPosts(posts) {
+  const resultDiv = document.getElementById('result');
+  if (!resultDiv) return;
+  
+  if (!posts.length) {
+    resultDiv.innerHTML = '<div class="no-results">該当する投稿がありません</div>';
+    return;
+  }
+
+  // 常に取得件数を表示（txtダウンロードリンク付き）
+  const countText = `<div class="count">取得件数: ${posts.length}件 <a href="#" id="txtDownloadLink" style="margin-left: 10px; color: #6364ff; text-decoration: underline; font-size: 13px;">txtダウンロード</a></div>`;
+
+  resultDiv.innerHTML = countText + posts.map(post => {
+    const postInfo = getPostDisplayInfo(post);
+
+    let displayText = '';
+    let timeDisplay = '';
+
+    if (postInfo.isBoost) {
+      const boostTimeStr = new Date(postInfo.boostTime).toLocaleString('ja-JP');
+      const originalTimeStr = new Date(postInfo.displayTime).toLocaleString('ja-JP');
+
+      displayText = escapeHtml(postInfo.displayContent);
+      timeDisplay = `ブースト: <span class="username">${escapeHtml(postInfo.boosterUser)}</span> ${boostTimeStr}\n元投稿: <span class="username">${escapeHtml(postInfo.displayUser)}</span> ${originalTimeStr}`;
+    } else {
+      displayText = escapeHtml(postInfo.displayContent);
+      timeDisplay = new Date(postInfo.displayTime).toLocaleString('ja-JP');
+    }
+
+    // メディア添付の情報
+    let mediaInfo = '';
+    if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
+      const mediaTypes = postInfo.mediaAttachments.map(m => m.type).join(', ');
+      mediaInfo = `<div class="mastodon-post-media">📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)</div>`;
+    }
+
+    return `<div class="mastodon-post-item" data-url="${postInfo.displayUrl}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
+      <div class="mastodon-post-header">
+        <div class="mastodon-post-user-info">
+          ${postInfo.isBoost ? '' : `<strong>${escapeHtml(postInfo.displayUser)}</strong>`}
+          <span class="mastodon-post-time-inline" style="white-space: pre-line;">${timeDisplay}</span>
+        </div>
+      </div>
+      <div class="mastodon-post-content" style="white-space: pre-wrap;">${displayText}</div>
+      ${mediaInfo}
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.mastodon-post-item').forEach(el => {
+    el.addEventListener('click', () => chrome.tabs.create({ url: el.dataset.url }));
+
+    // ホバープレビュー機能を追加
+    let hoverTimeout;
+    let isHoveringTooltip = false;
+
+    el.addEventListener('mouseenter', (e) => {
+      hoverTimeout = setTimeout(() => {
+        showPostPreview(e.target, JSON.parse(e.target.dataset.postData));
+      }, 500); // 500ms後にプレビュー表示
+    });
+
+    el.addEventListener('mouseleave', () => {
+      clearTimeout(hoverTimeout);
+      // ツールチップにホバーしていない場合のみ非表示
+      setTimeout(() => {
+        if (!isHoveringTooltip) {
+          hidePostPreview();
+        }
+      }, 100);
+    });
+
+    // ツールチップのホバー状態を管理
+    document.addEventListener('mouseover', (e) => {
+      if (e.target.closest('#mastodon-post-tooltip')) {
+        isHoveringTooltip = true;
+      }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      if (e.target.closest('#mastodon-post-tooltip') && !e.relatedTarget?.closest('#mastodon-post-tooltip')) {
+        isHoveringTooltip = false;
+        setTimeout(() => {
+          if (!isHoveringTooltip) {
+            hidePostPreview();
+          }
+        }, 100);
+      }
+    });
+  });
+
+  // txtダウンロードリンクのクリックイベントを追加
+  const txtDownloadLink = document.getElementById('txtDownloadLink');
+  if (txtDownloadLink) {
+    txtDownloadLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      downloadPostsAsTxt(posts);
+    });
+  }
+}
+
+function showError(msg) { 
+  const resultDiv = document.getElementById('result');
+  if (resultDiv) {
+    resultDiv.innerHTML = `<div class="error">${escapeHtml(msg)}</div>`; 
+  }
+}
+
+function stripHtmlTags(html, doRet = true) {
+  let text = html;
+
+  if (doRet) {
+    text = text.replace(/<\/p><p>/g, '\n\n');
+    text = text.replace(/<br\s*\/?>/g, '\n');
+  } else {
+    text = text.replace(/<\/p><p>/g, ' ');
+    text = text.replace(/<br\s*\/?>/g, ' ');
+  }
+
+  // HTMLタグを除去
+  const d = document.createElement('div');
+  d.innerHTML = text;
+  text = d.textContent || d.innerText || '';
+
+  // HTMLエンティティをデコード
+  text = text.replace(/&apos;/g, '\'');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&quot;/g, '"');
+
+  // 前後の空白・改行を除去
+  text = text.trim();
+
+  return text;
+}
+
+function getPostDisplayInfo(post) {
+  const isBoost = post.reblog != null;
+
+  if (isBoost) {
+    const originalPost = post.reblog;
+    const boosterUser = post.account.display_name || post.account.username;
+    const boosterUsername = `@${post.account.username}`;
+
+    // URLから /activity を削除
+    let fixedUrl = post.url;
+    if (fixedUrl && fixedUrl.endsWith('/activity')) {
+      fixedUrl = fixedUrl.slice(0, -9); // '/activity' を削除
+    }
+
+    return {
+      isBoost: true,
+      boosterUser,
+      boosterUsername,
+      boostTime: post.created_at,
+      originalPost,
+      displayUrl: fixedUrl,
+      displayContent: stripHtmlTags(originalPost.content, true) || 'テキストなし',
+      displayUser: originalPost.account.display_name || originalPost.account.username,
+      displayUsername: `@${originalPost.account.username}`,
+      displayTime: originalPost.created_at,
+      mediaAttachments: originalPost.media_attachments,
+      card: originalPost.card
+    };
+  } else {
+    return {
+      isBoost: false,
+      displayUrl: post.url,
+      displayContent: stripHtmlTags(post.content, true) || 'テキストなし',
+      displayUser: post.account.display_name || post.account.username,
+      displayUsername: `@${post.account.username}`,
+      displayTime: post.created_at,
+      mediaAttachments: post.media_attachments,
+      card: post.card
+    };
+  }
+}
+
+function showPostPreview(element, post) {
+  // 既存のツールチップを削除
+  hidePostPreview();
+
+  const postInfo = getPostDisplayInfo(post);
+
+  // ツールチップ要素を作成
+  const tooltip = document.createElement('div');
+  tooltip.id = 'mastodon-post-tooltip';
+  tooltip.style.cssText = `
+    position: fixed;
+    background: #1a1e27;
+    border: 1px solid #393f4f;
+    border-radius: 8px;
+    padding: 15px;
+    max-width: 400px;
+    z-index: 10000;
+    color: #fff;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  `;
+
+  // コンテンツの作成
+  let content = '';
+  
+  if (postInfo.isBoost) {
+    content += `<div style="color: #6364ff; margin-bottom: 8px; font-size: 12px;">
+      <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong> がブーストしました
+    </div>`;
+  }
+
+  content += `<div style="font-weight: bold; margin-bottom: 5px; color: #fff;">
+    ${escapeHtml(postInfo.displayUser)}
+  </div>`;
+
+  content += `<div style="margin-bottom: 8px; color: #9baec8; font-size: 12px;">
+    ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}
+  </div>`;
+
+  const displayContent = postInfo.displayContent.slice(0, 200);
+  content += `<div style="margin-bottom: 10px;">
+    ${escapeHtml(displayContent)}${postInfo.displayContent.length > 200 ? '...' : ''}
+  </div>`;
+
+  // メディア情報
+  if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
+    const mediaTypes = postInfo.mediaAttachments.map(m => m.type).join(', ');
+    content += `<div style="color: #6364ff; font-size: 12px; margin-top: 8px;">
+      📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)
+    </div>`;
+  }
+
+  // カード情報
+  if (postInfo.card) {
+    content += `<div style="color: #9baec8; font-size: 11px; margin-top: 5px;">
+      🔗 ${escapeHtml(postInfo.card.title || postInfo.card.url || '')}
+    </div>`;
+  }
+
+  content += `<div style="margin-top: 10px; font-size: 11px; color: #9baec8;">
+    クリックで開く
+  </div>`;
+
+  tooltip.innerHTML = content;
+  document.body.appendChild(tooltip);
+
+  // 位置調整
+  const rect = element.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  
+  let left = rect.left + rect.width + 10;
+  let top = rect.top;
+
+  // 画面右端を超える場合は左側に表示
+  if (left + tooltipRect.width > window.innerWidth) {
+    left = rect.left - tooltipRect.width - 10;
+  }
+
+  // 画面下端を超える場合は位置を調整
+  if (top + tooltipRect.height > window.innerHeight) {
+    top = window.innerHeight - tooltipRect.height - 10;
+  }
+
+  // 画面上端を下回る場合
+  if (top < 10) {
+    top = 10;
+  }
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function hidePostPreview() {
+  const existing = document.getElementById('mastodon-post-tooltip');
+  if (existing) {
+    existing.remove();
+  }
+}
+
+function downloadPostsAsTxt(posts) {
+  let content = `投稿データ - ${new Date().toLocaleString('ja-JP')}\n`;
+  content += `取得件数: ${posts.length}件\n\n`;
+  content += '='.repeat(50) + '\n\n';
+
+  posts.forEach((post, index) => {
+    const postInfo = getPostDisplayInfo(post);
+    content += `【${index + 1}】\n`;
+    
+    if (postInfo.isBoost) {
+      content += `ブースト: ${postInfo.boosterUser} (${postInfo.boosterUsername})\n`;
+      content += `ブースト日時: ${new Date(postInfo.boostTime).toLocaleString('ja-JP')}\n`;
+      content += `元投稿: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
+      content += `元投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
+    } else {
+      content += `投稿者: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
+      content += `投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
+    }
+    
+    content += `URL: ${postInfo.displayUrl}\n`;
+    content += `内容:\n${postInfo.displayContent}\n`;
+    
+    if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
+      content += `添付ファイル: ${postInfo.mediaAttachments.length}件\n`;
+      postInfo.mediaAttachments.forEach(media => {
+        content += `  - ${media.type}: ${media.url}\n`;
+      });
+    }
+    
+    if (postInfo.card) {
+      content += `リンクカード: ${postInfo.card.title || ''} - ${postInfo.card.url || ''}\n`;
+    }
+    
+    content += '\n' + '-'.repeat(30) + '\n\n';
+  });
+
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mastodon_posts_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // インスタンスベースURLを取得する関数
