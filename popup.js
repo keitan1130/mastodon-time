@@ -614,6 +614,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // インスタンス設定の初期化
   initializeInstanceSettings();
 
+  // 履歴ボタンの初期化
+  updatePopupHistoryButton();
+
   // ラジオボタンの変更イベントで UI を更新
   radioButtons.forEach(radio => {
     radio.addEventListener('change', updateInputUI);
@@ -2783,6 +2786,15 @@ function initializeInstanceSettings() {
 }
 
 // 履歴管理機能
+function updatePopupHistoryButton() {
+  const historyBtn = document.getElementById('historyBtn');
+  if (historyBtn) {
+    const history = getPopupSearchHistory();
+    const count = history.length;
+    historyBtn.textContent = `履歴 (${count}/10)`;
+  }
+}
+
 function savePopupSearchHistory(type, inputs, posts) {
   const history = getPopupSearchHistory();
 
@@ -2805,6 +2817,9 @@ function savePopupSearchHistory(type, inputs, posts) {
 
   // ローカルストレージに保存
   localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
+
+  // 履歴ボタンを更新
+  updatePopupHistoryButton();
 }
 
 function getPopupSearchHistory() {
@@ -2895,6 +2910,7 @@ function clearPopupHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
     localStorage.removeItem('mastodon-popup-search-history');
     showPopupHistory(); // 履歴表示を更新
+    updatePopupHistoryButton(); // 履歴ボタンを更新
   }
 }
 
@@ -3024,6 +3040,7 @@ function deletePopupHistoryItem(historyId) {
     history = history.filter(h => h.id !== historyId);
     localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
     showPopupHistory(); // 履歴表示を更新
+    updatePopupHistoryButton(); // 履歴ボタンを更新
   }
 }
 

@@ -280,6 +280,7 @@ function setupEventListeners() {
   });
 
   updateInputUI();
+  updateHistoryButton(); // 履歴ボタンを初期化
 }
 
 function updateSearchModeUI() {
@@ -2166,6 +2167,15 @@ function downloadPostsAsTxt(posts) {
 }
 
 // 履歴管理機能
+function updateHistoryButton() {
+  const historyBtn = document.getElementById('mastodon-history-btn');
+  if (historyBtn) {
+    const history = getSearchHistory();
+    const count = history.length;
+    historyBtn.textContent = `履歴 (${count}/10)`;
+  }
+}
+
 function saveSearchHistory(type, inputs, posts) {
   const history = getSearchHistory();
 
@@ -2188,6 +2198,9 @@ function saveSearchHistory(type, inputs, posts) {
 
   // ローカルストレージに保存
   localStorage.setItem('mastodon-content-search-history', JSON.stringify(history));
+
+  // 履歴ボタンを更新
+  updateHistoryButton();
 }
 
 function getSearchHistory() {
@@ -2278,6 +2291,7 @@ function clearHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
     localStorage.removeItem('mastodon-content-search-history');
     showHistory(); // 履歴表示を更新
+    updateHistoryButton(); // 履歴ボタンを更新
   }
 }
 
@@ -2416,6 +2430,7 @@ function deleteHistoryItem(historyId) {
     history = history.filter(h => h.id !== historyId);
     localStorage.setItem('mastodon-content-search-history', JSON.stringify(history));
     showHistory(); // 履歴表示を更新
+    updateHistoryButton(); // 履歴ボタンを更新
   }
 }
 
