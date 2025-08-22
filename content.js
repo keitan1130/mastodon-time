@@ -982,6 +982,7 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
   const instanceUrl = getActiveInstanceUrl();
+  const isCurrentInstance = instanceUrl === window.location.origin;
 
   while (requestCount < maxRequests) {
     const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
@@ -990,14 +991,31 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
     url.searchParams.set('since_id', sinceId);
     url.searchParams.set('local', 'true');
 
-    const res = await fetch(url, {
-      headers: {
-        "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-        "X-Csrf-Token": stored["x_csrf_token"],
-        "Authorization": stored["authorization"]
-      },
-      credentials: "include"
-    });
+    let res;
+    try {
+      // 現在のインスタンスの場合は認証付きリクエスト
+      if (isCurrentInstance) {
+        res = await fetch(url, {
+          headers: {
+            "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+            "X-Csrf-Token": stored["x_csrf_token"],
+            "Authorization": stored["authorization"]
+          },
+          credentials: "include"
+        });
+      } else {
+        // 他のインスタンスの場合は認証なしリクエスト
+        res = await fetch(url, {
+          credentials: "omit"
+        });
+      }
+    } catch (error) {
+      // CORS エラーなどで認証付きリクエストが失敗した場合、認証なしで再試行
+      console.log('認証付きリクエスト失敗、認証なしで再試行:', error.message);
+      res = await fetch(url, {
+        credentials: "omit"
+      });
+    }
 
     if (!res.ok) throw new Error('タイムライン取得エラー');
 
@@ -1028,6 +1046,37 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
   const instanceUrl = getActiveInstanceUrl();
+  const isCurrentInstance = instanceUrl === window.location.origin;
+
+  // 共通のfetch関数
+  async function fetchWithAuth(url) {
+    let res;
+    try {
+      // 現在のインスタンスの場合は認証付きリクエスト
+      if (isCurrentInstance) {
+        res = await fetch(url, {
+          headers: {
+            "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
+            "X-Csrf-Token": stored["x_csrf_token"],
+            "Authorization": stored["authorization"]
+          },
+          credentials: "include"
+        });
+      } else {
+        // 他のインスタンスの場合は認証なしリクエスト
+        res = await fetch(url, {
+          credentials: "omit"
+        });
+      }
+    } catch (error) {
+      // CORS エラーなどで認証付きリクエストが失敗した場合、認証なしで再試行
+      console.log('認証付きリクエスト失敗、認証なしで再試行:', error.message);
+      res = await fetch(url, {
+        credentials: "omit"
+      });
+    }
+    return res;
+  }
 
   // 開始時刻が指定されている場合の特別処理
   if (startTime) {
@@ -1049,14 +1098,7 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
         url.searchParams.set('max_id', maxId);
         url.searchParams.set('local', 'true');
 
-        const res = await fetch(url, {
-          headers: {
-            "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-            "X-Csrf-Token": stored["x_csrf_token"],
-            "Authorization": stored["authorization"]
-          },
-          credentials: "include"
-        });
+        const res = await fetchWithAuth(url);
 
         if (!res.ok) break;
 
@@ -1102,14 +1144,7 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
       minIdUrl.searchParams.set('min_id', generateSnowflakeIdFromJst(startTime));
       minIdUrl.searchParams.set('local', 'true');
 
-      const minIdRes = await fetch(minIdUrl, {
-        headers: {
-          "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-          "X-Csrf-Token": stored["x_csrf_token"],
-          "Authorization": stored["authorization"]
-        },
-        credentials: "include"
-      });
+      const minIdRes = await fetchWithAuth(minIdUrl);
 
       if (minIdRes.ok) {
         const minIdBatch = await minIdRes.json();
@@ -1142,14 +1177,7 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
           url.searchParams.set('max_id', maxId);
           url.searchParams.set('local', 'true');
 
-          const res = await fetch(url, {
-            headers: {
-              "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-              "X-Csrf-Token": stored["x_csrf_token"],
-              "Authorization": stored["authorization"]
-            },
-            credentials: "include"
-          });
+          const res = await fetchWithAuth(url);
 
           if (!res.ok) break;
 
@@ -1197,14 +1225,7 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
           nextMinIdUrl.searchParams.set('min_id', generateSnowflakeIdFromJst(currentPeriodStart));
           nextMinIdUrl.searchParams.set('local', 'true');
 
-          const nextMinIdRes = await fetch(nextMinIdUrl, {
-            headers: {
-              "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-              "X-Csrf-Token": stored["x_csrf_token"],
-              "Authorization": stored["authorization"]
-            },
-            credentials: "include"
-          });
+          const nextMinIdRes = await fetchWithAuth(nextMinIdUrl);
 
           if (nextMinIdRes.ok) {
             const nextMinIdBatch = await nextMinIdRes.json();
@@ -1257,14 +1278,7 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
       url.searchParams.set('max_id', maxId);
     }
 
-    const res = await fetch(url, {
-      headers: {
-        "Cookie": `_session_id=${stored["session_id"]}; _mastodon_session=${stored["mastodon_session"]};`,
-        "X-Csrf-Token": stored["x_csrf_token"],
-        "Authorization": stored["authorization"]
-      },
-      credentials: "include"
-    });
+    const res = await fetchWithAuth(url);
 
     if (!res.ok) throw new Error('タイムライン取得エラー');
 
