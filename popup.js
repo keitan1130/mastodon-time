@@ -1,5 +1,13 @@
 // Mastodon Post Viewer Extension with Hour-based or Minute-based Time Range Search
 
+// グローバルユーティリティ関数
+function escapeHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div'); 
+  d.textContent = s; 
+  return d.innerHTML; 
+}
+
 // インスタンスベースURLを取得する関数
 async function getCurrentInstanceUrl() {
   return new Promise((resolve) => {
@@ -2534,7 +2542,7 @@ function showPopupHistoryInline() {
             <span class="mastodon-history-inline-type">[${typeLabel}]</span>
             <span class="mastodon-history-inline-time">${timeStr}</span>
           </div>
-          <div class="mastodon-history-inline-summary">${escapeHtml(inputSummary)}</div>
+          <div class="mastodon-history-inline-summary">${(inputSummary || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</div>
           <div class="mastodon-history-inline-result">結果: ${item.resultCount}件</div>
           <div class="mastodon-history-inline-actions">
             <button class="mastodon-history-inline-restore-btn" data-history-id="${item.id}">復元</button>
