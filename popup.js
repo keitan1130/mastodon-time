@@ -1079,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', function() {
         displayPosts([post]);
 
         // 検索成功時に履歴を保存
-        savePopupSearchHistory('id', { postId: raw }, [post]);
+        await savePopupSearchHistory('id', { postId: raw }, [post]);
       } else if (type === 'user') {
         // ユーザー名検索（分離された入力欄使用）
         const username = usernameField.value.trim();
@@ -1153,14 +1153,49 @@ document.addEventListener('DOMContentLoaded', function() {
           const posts = await fetchUserPosts(cleanUsername, fetchOptions);
           displayPosts(posts);
 
+          // 検索対象のインスタンス情報を取得
+          let targetInstanceInfo = null;
+          if (cleanUsername.includes('@')) {
+            // リモートユーザーの場合
+            const parts = cleanUsername.split('@');
+            const instanceDomain = parts[1];
+            const targetInstanceUrl = `https://${instanceDomain}`;
+
+            try {
+              // 検索対象インスタンスの情報を取得
+              const apiUrl = `${targetInstanceUrl}/api/v1/instance`;
+              const response = await fetch(apiUrl);
+
+              if (response.ok) {
+                const instanceData = await response.json();
+                targetInstanceInfo = {
+                  url: targetInstanceUrl,
+                  name: instanceData.title || instanceData.short_description || instanceDomain
+                };
+              } else {
+                // APIが利用できない場合はドメイン名を使用
+                targetInstanceInfo = {
+                  url: targetInstanceUrl,
+                  name: instanceDomain
+                };
+              }
+            } catch (error) {
+              // エラーの場合はドメイン名を使用
+              targetInstanceInfo = {
+                url: targetInstanceUrl,
+                name: instanceDomain
+              };
+            }
+          }
+
           // 検索成功時に履歴を保存
-          savePopupSearchHistory('user', {
+          await savePopupSearchHistory('user', {
             username: cleanUsername,
             timeInput,
             searchMode,
             postCount: searchMode === 'postCount' ? parseInt(document.getElementById('postCount').value) || 200 : null,
             timeRange: searchMode === 'timeRange' ? document.getElementById('timeRange').value.trim() : null
-          }, posts);
+          }, posts, targetInstanceInfo);
         } else {
           // 時間範囲指定モード - 従来の処理
           let timeFilter = null;
@@ -1257,7 +1292,7 @@ document.addEventListener('DOMContentLoaded', function() {
           displayPosts(posts);
 
           // 検索成功時に履歴を保存
-          savePopupSearchHistory('time', {
+          await savePopupSearchHistory('time', {
             timeInput: raw,
             searchMode: 'postCount',
             postCount: postCountInput
@@ -1325,7 +1360,7 @@ document.addEventListener('DOMContentLoaded', function() {
         displayPosts(posts);
 
         // 検索成功時に履歴を保存
-        savePopupSearchHistory('time', {
+        await savePopupSearchHistory('time', {
           timeInput: raw,
           searchMode: 'timeRange',
           timeRange: timeRangeInput,
@@ -2785,9 +2820,59 @@ function initializeInstanceSettings() {
   });
 }
 
+// 日時解析・フォーマット用ユーティリティ関数（グローバルスコープ）
+function parseDateTime(input) {
+  // 混在区切り文字にも対応した正規表現
+  const timeMatch = input.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+  if (!timeMatch) throw new Error('Invalid datetime format');
+
+  const Y = Number(timeMatch[1]);
+  const Mo = Number(timeMatch[2]);
+  const D = Number(timeMatch[3]);
+  const hh = timeMatch[4] ? Number(timeMatch[4]) : 0;
+  const mm = timeMatch[5] ? Number(timeMatch[5]) : 0;
+  const ss = timeMatch[6] ? Number(timeMatch[6]) : 0;
+
+  return new Date(Y, Mo-1, D, hh, mm, ss, 0);
+}
+
+function parseAndAddTime(startDate, timeInput) {
+  // 10 → 10:00:00, 10:30 → 10:30:00, 10:30:20 → 10:30:20 の形式を解析
+  // マイナス値もサポート: -1:30:00 → -1時間30分
+  let hh = 0, mm = 0, ss = 0;
+
+  if (timeInput.includes(':')) {
+    const parts = timeInput.split(':');
+    hh = Number(parts[0]) || 0;
+    mm = Number(parts[1]) || 0;
+    ss = Number(parts[2]) || 0;
+  } else {
+    // 数字のみの場合は時間として扱う（マイナス値も対応）
+    hh = Number(timeInput) || 0;
+  }
+
+  const endDate = new Date(startDate.getTime());
+  endDate.setHours(startDate.getHours() + hh);
+  endDate.setMinutes(startDate.getMinutes() + mm);
+  endDate.setSeconds(startDate.getSeconds() + ss);
+
+  return endDate;
+}
+
+function formatDateTime(date) {
+  const Y = date.getFullYear();
+  const M = String(date.getMonth() + 1).padStart(2, '0');
+  const D = String(date.getDate()).padStart(2, '0');
+  const H = String(date.getHours()).padStart(2, '0');
+  const Min = String(date.getMinutes()).padStart(2, '0');
+  const S = String(date.getSeconds()).padStart(2, '0');
+
+  return `${Y}-${M}-${D} ${H}:${Min}:${S}`;
+}
+
 // 履歴管理機能
 // updatePopupHistoryButton関数は不要（履歴タイトルに直接表示するため）
-function savePopupSearchHistory(type, inputs, posts) {
+async function savePopupSearchHistory(type, inputs, posts, targetInstanceInfo = null) {
   // 空の検索結果や無効なデータは履歴に保存しない
   if (!posts || posts.length === 0) {
     console.log('履歴保存をスキップ: 空の検索結果');
@@ -2802,13 +2887,33 @@ function savePopupSearchHistory(type, inputs, posts) {
 
   const history = getPopupSearchHistory();
 
+  // インスタンス情報を取得（targetInstanceInfoが優先、次に設定されたインスタンス情報）
+  let instanceInfo = targetInstanceInfo;
+  if (!instanceInfo) {
+    try {
+      const result = await new Promise((resolve) => {
+        chrome.storage.local.get(['instanceUrl', 'instanceName'], resolve);
+      });
+
+      if (result.instanceUrl) {
+        instanceInfo = {
+          url: result.instanceUrl,
+          name: result.instanceName || new URL(result.instanceUrl).hostname
+        };
+      }
+    } catch (error) {
+      console.log('インスタンス情報取得失敗:', error);
+    }
+  }
+
   const historyItem = {
     id: Date.now(),
     timestamp: new Date().toISOString(),
     type,
     inputs,
     resultCount: posts.length,
-    posts: posts // 全件保存に変更
+    posts: posts, // 全件保存に変更
+    instance: instanceInfo // インスタンス情報を追加
   };
 
   // 新しいアイテムを先頭に追加
@@ -3017,6 +3122,27 @@ function restorePopupSearchFromHistory(historyId) {
       break;
   }
 
+  // インスタンス情報を復元（履歴にインスタンス情報が保存されている場合）
+  if (item.instance && item.instance.url) {
+    const instanceUrlField = document.getElementById('instanceUrl');
+    const instanceNameSpan = document.getElementById('instanceName');
+
+    if (instanceUrlField) {
+      instanceUrlField.value = item.instance.url;
+
+      // Chrome storage にも一時的に保存して整合性を保つ
+      chrome.storage.local.set({
+        instanceUrl: item.instance.url,
+        instanceName: item.instance.name
+      }, () => {
+        // インスタンス名表示を更新
+        if (instanceNameSpan) {
+          instanceNameSpan.textContent = item.instance.name;
+        }
+      });
+    }
+  }
+
   // UIを更新
   updateInputUI();
   updateSearchModeUI();
@@ -3172,6 +3298,7 @@ function showPopupHistoryInline() {
         case 'id':
           typeLabel = '投稿ID';
           detailInfo = `投稿ID: ${item.inputs?.postId || 'N/A'}`;
+          detailInfo += `\n件数: ${item.resultCount || 0}件`;
           break;
         case 'user':
           typeLabel = 'ユーザー';
@@ -3193,6 +3320,7 @@ function showPopupHistoryInline() {
               }
             }
           }
+          detailInfo += `\n件数: ${item.resultCount || 0}件`;
           break;
         case 'time':
           typeLabel = 'パブリック';
@@ -3216,7 +3344,13 @@ function showPopupHistoryInline() {
               }
             }
           }
+          detailInfo += `\n件数: ${item.resultCount || 0}件`;
           break;
+      }
+
+      // インスタンス情報が存在する場合は追加表示
+      if (item.instance) {
+        detailInfo += `\nインスタンス: ${item.instance.name}`;
       }
 
       return `
@@ -3575,6 +3709,27 @@ function restorePopupSearchFromInlineHistory(historyId) {
         // インスタンス設定は復元できないが、メッセージを表示
         alert(`インスタンス設定: ${item.inputs.instanceName} (${item.inputs.instanceUrl})\nこの設定は復元できませんが、設定履歴として保存されています。`);
         break;
+    }
+
+    // インスタンス情報を復元（履歴にインスタンス情報が保存されている場合）
+    if (item.instance && item.instance.url) {
+      const instanceUrlField = document.getElementById('instanceUrl');
+      const instanceNameSpan = document.getElementById('instanceName');
+
+      if (instanceUrlField) {
+        instanceUrlField.value = item.instance.url;
+
+        // Chrome storage にも一時的に保存して整合性を保つ
+        chrome.storage.local.set({
+          instanceUrl: item.instance.url,
+          instanceName: item.instance.name
+        }, () => {
+          // インスタンス名表示を更新
+          if (instanceNameSpan) {
+            instanceNameSpan.textContent = item.instance.name;
+          }
+        });
+      }
     }
 
     // UIを更新

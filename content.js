@@ -8,6 +8,23 @@ function getCurrentInstanceUrl() {
   return `${window.location.protocol}//${window.location.host}`;
 }
 
+// 表示されているインスタンス情報を取得する関数（復元された情報を優先）
+function getActiveInstanceUrl() {
+  const instanceNameSpan = document.getElementById('instanceName');
+  const resetButton = document.getElementById('instanceResetBtn');
+
+  // リセットボタンがある場合は復元されたインスタンス情報を使用
+  if (resetButton && instanceNameSpan && instanceNameSpan.title) {
+    const urlMatch = instanceNameSpan.title.match(/URL: (https?:\/\/[^\s]+)/);
+    if (urlMatch) {
+      return urlMatch[1];
+    }
+  }
+
+  // リセットボタンがない場合は現在のページのドメインを使用
+  return getCurrentInstanceUrl();
+}
+
 function injectMastodonViewer() {
   if (mastodonViewerInjected) return;
 
@@ -42,7 +59,10 @@ function injectMastodonViewer() {
 
   viewerContainer.innerHTML = `
     <div class="mastodon-viewer-header">
-      <h3>投稿検索</h3>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <h3>投稿検索</h3>
+        <span id="instanceName" class="mastodon-instance-name">読み込み中...</span>
+      </div>
       <div style="display: flex; gap: 10px; align-items: center;">
         <button id="mastodon-history-btn" class="mastodon-history-btn">履歴</button>
         <button id="mastodon-viewer-toggle" class="mastodon-toggle-btn">▶</button>
@@ -150,6 +170,10 @@ function injectMastodonViewer() {
 
   // イベントリスナーを設定
   setupEventListeners();
+
+  // インスタンス名を表示
+  updateInstanceNameDisplay();
+
   mastodonViewerInjected = true;
 }
 
@@ -612,7 +636,13 @@ function updateInputUI() {
 async function handleSearch() {
   const type = document.querySelector('input[name="mastodonInputType"]:checked').value;
   const resultDiv = document.getElementById('mastodonResult');
-  resultDiv.innerHTML = '<div class="mastodon-loading">取得中...</div>';
+
+  // 使用するインスタンスを取得して表示
+  const activeInstanceUrl = getActiveInstanceUrl();
+  const instanceNameSpan = document.getElementById('instanceName');
+  const instanceName = instanceNameSpan ? instanceNameSpan.textContent : new URL(activeInstanceUrl).hostname;
+
+  resultDiv.innerHTML = `<div class="mastodon-loading">取得中... (${instanceName})</div>`;
 
   try {
     if (type === 'id') {
@@ -624,7 +654,7 @@ async function handleSearch() {
       displayPosts([post]);
 
       // 検索成功時に履歴を保存
-      saveSearchHistory('id', { postId: raw }, [post]);
+      await saveSearchHistory('id', { postId: raw }, [post]);
     } else if (type === 'user') {
       const username = document.getElementById('mastodonUsernameField').value.trim();
       const timeInput = document.getElementById('mastodonTimeField').value.trim();
@@ -731,14 +761,49 @@ async function handleSearch() {
       const posts = await fetchUserPosts(cleanUsername, fetchOptions);
       displayPosts(posts);
 
+      // 検索対象のインスタンス情報を取得
+      let targetInstanceInfo = null;
+      if (cleanUsername.includes('@')) {
+        // リモートユーザーの場合
+        const parts = cleanUsername.split('@');
+        const instanceDomain = parts[1];
+        const targetInstanceUrl = `https://${instanceDomain}`;
+
+        try {
+          // 検索対象インスタンスの情報を取得
+          const apiUrl = `${targetInstanceUrl}/api/v1/instance`;
+          const response = await fetch(apiUrl);
+
+          if (response.ok) {
+            const instanceData = await response.json();
+            targetInstanceInfo = {
+              url: targetInstanceUrl,
+              name: instanceData.title || instanceData.short_description || instanceDomain
+            };
+          } else {
+            // APIが利用できない場合はドメイン名を使用
+            targetInstanceInfo = {
+              url: targetInstanceUrl,
+              name: instanceDomain
+            };
+          }
+        } catch (error) {
+          // エラーの場合はドメイン名を使用
+          targetInstanceInfo = {
+            url: targetInstanceUrl,
+            name: instanceDomain
+          };
+        }
+      }
+
       // 検索成功時に履歴を保存
-      saveSearchHistory('user', {
+      await saveSearchHistory('user', {
         username: cleanUsername,
         timeInput,
         searchMode,
         postCount: searchMode === 'postCount' ? parseInt(document.getElementById('mastodonPostCount').value) || 200 : null,
         timeRange: searchMode === 'timeRange' ? document.getElementById('mastodonTimeRange').value.trim() : null
-      }, posts);
+      }, posts, targetInstanceInfo);
     } else if (type === 'time') {
       // パブリック（時間）モード
       const raw = document.getElementById('mastodonPostIdOrTime').value.trim();
@@ -770,7 +835,7 @@ async function handleSearch() {
         displayPosts(posts);
 
         // 検索成功時に履歴を保存
-        saveSearchHistory('time', {
+        await saveSearchHistory('time', {
           timeInput: raw,
           searchMode: 'postCount',
           postCount: postCountInput
@@ -835,7 +900,7 @@ async function handleSearch() {
         displayPosts(posts);
 
         // 検索成功時に履歴を保存
-        saveSearchHistory('time', {
+        await saveSearchHistory('time', {
           timeInput: raw,
           searchMode: 'timeRange',
           timeRange: timeRangeInput,
@@ -851,7 +916,7 @@ async function handleSearch() {
 
 // popup.jsから必要な関数をコピー
 async function fetchMastodonPost(id) {
-  const instanceUrl = getCurrentInstanceUrl();
+  const instanceUrl = getActiveInstanceUrl();
   const res = await fetch(`${instanceUrl}/api/v1/statuses/${id}`);
   if (!res.ok) throw new Error(`投稿取得エラー: ${res.status}`);
   return res.json();
@@ -871,7 +936,7 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
 
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
-  const instanceUrl = getCurrentInstanceUrl();
+  const instanceUrl = getActiveInstanceUrl();
 
   while (requestCount < maxRequests) {
     const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
@@ -917,7 +982,7 @@ async function fetchPublicTimelineByCount(postCount, startTime = null) {
 
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
-  const instanceUrl = getCurrentInstanceUrl();
+  const instanceUrl = getActiveInstanceUrl();
 
   // 開始時刻が指定されている場合の特別処理
   if (startTime) {
@@ -1198,8 +1263,8 @@ async function fetchUserPosts(username, options = {}) {
     const instanceDomain = parts[1]; // インスタンスドメイン部分
     targetInstanceUrl = `https://${instanceDomain}`;
   } else {
-    // user 形式の場合は現在のインスタンスを使用
-    targetInstanceUrl = getCurrentInstanceUrl();
+    // user 形式の場合は現在アクティブなインスタンスを使用
+    targetInstanceUrl = getActiveInstanceUrl();
     cleanUsername = username;
   }
 
@@ -1213,12 +1278,15 @@ async function fetchUserPosts(username, options = {}) {
       "Authorization": stored["authorization"]
     },
     credentials: "include"
-  }).catch(async () => {
-    // CORS エラーの場合は認証なしで試行
-    if (username.includes('@')) {
+  }).catch(async (error) => {
+    console.log('認証付きリクエスト失敗:', error);
+    // CORS エラーまたは認証エラーの場合は認証なしで試行
+    try {
       return await fetch(lookupUrl);
+    } catch (fallbackError) {
+      console.log('認証なしリクエストも失敗:', fallbackError);
+      throw new Error(`ユーザー検索に失敗しました: ${fallbackError.message}`);
     }
-    throw new Error('認証エラー');
   });
 
   if (!accountRes.ok) {
@@ -1259,11 +1327,15 @@ async function fetchUserPosts(username, options = {}) {
             "Authorization": stored["authorization"]
           },
           credentials: "include"
-        }).catch(async () => {
-          if (username.includes('@')) {
+        }).catch(async (error) => {
+          console.log('認証付き投稿取得失敗:', error);
+          // CORS エラーまたは認証エラーの場合は認証なしで試行
+          try {
             return await fetch(statusesUrl);
+          } catch (fallbackError) {
+            console.log('認証なし投稿取得も失敗:', fallbackError);
+            throw new Error(`投稿取得に失敗しました: ${fallbackError.message}`);
           }
-          throw new Error('認証エラー');
         });
 
         if (!statusesRes.ok) break;
@@ -1315,11 +1387,15 @@ async function fetchUserPosts(username, options = {}) {
           "Authorization": stored["authorization"]
         },
         credentials: "include"
-      }).catch(async () => {
-        if (username.includes('@')) {
+      }).catch(async (error) => {
+        console.log('認証付きmin_id検索失敗:', error);
+        // CORS エラーまたは認証エラーの場合は認証なしで試行
+        try {
           return await fetch(minIdUrl);
+        } catch (fallbackError) {
+          console.log('認証なしmin_id検索も失敗:', fallbackError);
+          throw new Error(`未来方向検索に失敗しました: ${fallbackError.message}`);
         }
-        throw new Error('認証エラー');
       });
 
       if (minIdRes.ok) {
@@ -1359,11 +1435,15 @@ async function fetchUserPosts(username, options = {}) {
               "Authorization": stored["authorization"]
             },
             credentials: "include"
-          }).catch(async () => {
-            if (username.includes('@')) {
+          }).catch(async (error) => {
+            console.log('認証付き未来方向取得失敗:', error);
+            // CORS エラーまたは認証エラーの場合は認証なしで試行
+            try {
               return await fetch(statusesUrl);
+            } catch (fallbackError) {
+              console.log('認証なし未来方向取得も失敗:', fallbackError);
+              throw new Error(`未来方向投稿取得に失敗しました: ${fallbackError.message}`);
             }
-            throw new Error('認証エラー');
           });
 
           if (!statusesRes.ok) break;
@@ -1418,11 +1498,15 @@ async function fetchUserPosts(username, options = {}) {
               "Authorization": stored["authorization"]
             },
             credentials: "include"
-          }).catch(async () => {
-            if (username.includes('@')) {
+          }).catch(async (error) => {
+            console.log('認証付き次期間検索失敗:', error);
+            // CORS エラーまたは認証エラーの場合は認証なしで試行
+            try {
               return await fetch(nextMinIdUrl);
+            } catch (fallbackError) {
+              console.log('認証なし次期間検索も失敗:', fallbackError);
+              throw new Error(`次期間検索に失敗しました: ${fallbackError.message}`);
             }
-            throw new Error('認証エラー');
           });
 
           if (nextMinIdRes.ok) {
@@ -1493,12 +1577,15 @@ async function fetchUserPosts(username, options = {}) {
         "Authorization": stored["authorization"]
       },
       credentials: "include"
-    }).catch(async () => {
-      // CORS エラーの場合は認証なしで試行
-      if (username.includes('@')) {
+    }).catch(async (error) => {
+      console.log('認証付き通常取得失敗:', error);
+      // CORS エラーまたは認証エラーの場合は認証なしで試行
+      try {
         return await fetch(statusesUrl);
+      } catch (fallbackError) {
+        console.log('認証なし通常取得も失敗:', fallbackError);
+        throw new Error(`通常投稿取得に失敗しました: ${fallbackError.message}`);
       }
-      throw new Error('認証エラー');
     });
 
     if (!statusesRes.ok) {
@@ -2168,7 +2255,7 @@ function downloadPostsAsTxt(posts) {
 
 // 履歴管理機能
 // updateHistoryButton関数は不要（履歴タイトルに直接表示するため）
-function saveSearchHistory(type, inputs, posts) {
+async function saveSearchHistory(type, inputs, posts, targetInstanceInfo = null) {
   // 空の検索結果や無効なデータは履歴に保存しない
   if (!posts || posts.length === 0) {
     console.log('履歴保存をスキップ: 空の検索結果');
@@ -2183,13 +2270,28 @@ function saveSearchHistory(type, inputs, posts) {
 
   const history = getSearchHistory();
 
+  // インスタンス情報を取得（targetInstanceInfoが優先、次に現在のページ情報）
+  let instanceInfo = targetInstanceInfo;
+  if (!instanceInfo) {
+    try {
+      instanceInfo = await getCurrentPageInstanceInfo();
+    } catch (error) {
+      console.log('インスタンス情報取得失敗:', error);
+      instanceInfo = {
+        url: window.location.origin,
+        name: window.location.hostname
+      };
+    }
+  }
+
   const historyItem = {
     id: Date.now(),
     timestamp: new Date().toISOString(),
     type,
     inputs,
     resultCount: posts.length,
-    posts: posts // 全件保存に変更
+    posts: posts, // 全件保存に変更
+    instance: instanceInfo // インスタンス情報を追加
   };
 
   // 新しいアイテムを先頭に追加
@@ -2389,6 +2491,53 @@ function restoreSearchFromHistory(historyId) {
         }
       }
       break;
+  }
+
+  // インスタンス情報を復元（履歴にインスタンス情報が保存されている場合）
+  if (item.instance && item.instance.url) {
+    const instanceNameSpan = document.getElementById('instanceName');
+
+    if (instanceNameSpan) {
+      // 現在の情報を保存（戻る用）
+      const currentInstanceName = instanceNameSpan.textContent;
+      const currentInstanceTitle = instanceNameSpan.title;
+
+      // インスタンス名表示を復元した内容で更新
+      instanceNameSpan.textContent = item.instance.name;
+      instanceNameSpan.title = `URL: ${item.instance.url}`;
+
+      // 戻るボタンを追加
+      const resetButton = document.createElement('button');
+      resetButton.id = 'instanceResetBtn';
+      resetButton.textContent = 'リセット';
+      resetButton.className = 'mastodon-instance-reset-btn';
+      resetButton.style.cssText = `
+        margin-left: 8px;
+        padding: 2px 6px;
+        font-size: 10px;
+        background: #6364ff;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      `;
+
+      resetButton.addEventListener('click', () => {
+        // 現在のページ情報に戻す
+        updateInstanceNameDisplay();
+        // ボタンを削除
+        resetButton.remove();
+      });
+
+      // 既存のボタンがあれば削除
+      const existingButton = document.getElementById('instanceResetBtn');
+      if (existingButton) {
+        existingButton.remove();
+      }
+
+      // ボタンをインスタンス名の後に挿入
+      instanceNameSpan.parentNode.insertBefore(resetButton, instanceNameSpan.nextSibling);
+    }
   }
 
   // UIを更新
@@ -2618,6 +2767,11 @@ function showHistoryInline() {
       }
 
       detailInfo += `\n件数: ${item.resultCount}件`;
+
+      // インスタンス情報が存在する場合は追加表示
+      if (item.instance) {
+        detailInfo += `\nインスタンス: ${item.instance.name}`;
+      }
 
       return `
         <div class="mastodon-history-inline-item" data-history-id="${item.id}">
@@ -2927,15 +3081,22 @@ function restoreSearchFromInlineHistory(historyId) {
     switch(item.type) {
       case 'id':
         const postIdField = document.getElementById('mastodonPostIdOrTime');
-        if (postIdField) postIdField.value = item.inputs.postId;
+        if (postIdField) {
+          postIdField.value = item.inputs.postId;
+          localStorage.setItem('mastodon-content-postId', item.inputs.postId);
+        }
         break;
 
       case 'user':
         const usernameField = document.getElementById('mastodonUsernameField');
         const timeField = document.getElementById('mastodonTimeField');
-        if (usernameField) usernameField.value = item.inputs.username;
+        if (usernameField) {
+          usernameField.value = item.inputs.username;
+          localStorage.setItem('mastodon-content-username', item.inputs.username);
+        }
         if (item.inputs.timeInput && timeField) {
           timeField.value = item.inputs.timeInput;
+          localStorage.setItem('mastodon-content-userTime', item.inputs.timeInput);
         }
 
         // 検索モードを復元
@@ -2943,35 +3104,66 @@ function restoreSearchFromInlineHistory(historyId) {
           const modeRadio = document.querySelector(`input[name="mastodonSearchMode"][value="${item.inputs.searchMode}"]`);
           if (modeRadio) {
             modeRadio.checked = true;
+            localStorage.setItem('mastodon-content-searchMode', item.inputs.searchMode);
           }
 
           if (item.inputs.searchMode === 'postCount' && item.inputs.postCount) {
             const postCountField = document.getElementById('mastodonPostCount');
-            if (postCountField) postCountField.value = item.inputs.postCount;
+            if (postCountField) {
+              postCountField.value = item.inputs.postCount;
+              localStorage.setItem('mastodon-content-postCount', item.inputs.postCount);
+            }
+            if (item.inputs.searchTime) {
+              const searchTimeField = document.getElementById('mastodonSearchTime');
+              if (searchTimeField) {
+                searchTimeField.value = item.inputs.searchTime;
+                localStorage.setItem('mastodon-content-searchTime', item.inputs.searchTime);
+              }
+            }
           } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
             const timeRangeSelect = document.getElementById('mastodonTimeRange');
-            if (timeRangeSelect) timeRangeSelect.value = item.inputs.timeRange;
+            if (timeRangeSelect) {
+              timeRangeSelect.value = item.inputs.timeRange;
+              localStorage.setItem('mastodon-content-timeRangeInput', item.inputs.timeRange);
+            }
           }
         }
         break;
 
       case 'time':
         const timeInputField = document.getElementById('mastodonPostIdOrTime');
-        if (timeInputField) timeInputField.value = item.inputs.timeInput || '';
+        if (timeInputField) {
+          timeInputField.value = item.inputs.timeInput || '';
+          localStorage.setItem('mastodon-content-timeRange', item.inputs.timeInput || '');
+        }
 
         // 検索モードを復元
         if (item.inputs.searchMode) {
           const modeRadio = document.querySelector(`input[name="mastodonSearchMode"][value="${item.inputs.searchMode}"]`);
           if (modeRadio) {
             modeRadio.checked = true;
+            localStorage.setItem('mastodon-content-searchMode', item.inputs.searchMode);
           }
 
           if (item.inputs.searchMode === 'postCount' && item.inputs.postCount) {
             const postCountField = document.getElementById('mastodonPostCount');
-            if (postCountField) postCountField.value = item.inputs.postCount;
+            if (postCountField) {
+              postCountField.value = item.inputs.postCount;
+              localStorage.setItem('mastodon-content-postCount', item.inputs.postCount);
+            }
+            if (item.inputs.searchTime) {
+              const searchTimeField = document.getElementById('mastodonSearchTime');
+              if (searchTimeField) {
+                searchTimeField.value = item.inputs.searchTime;
+                localStorage.setItem('mastodon-content-searchTime', item.inputs.searchTime);
+              }
+            }
           } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
             const timeRangeSelect = document.getElementById('mastodonTimeRange');
-            if (timeRangeSelect) timeRangeSelect.value = item.inputs.timeRange;
+            if (timeRangeSelect) {
+              timeRangeSelect.value = item.inputs.timeRange;
+              localStorage.setItem('mastodon-content-timeRangeInput', item.inputs.timeRange);
+            }
           }
         }
         break;
@@ -2979,6 +3171,53 @@ function restoreSearchFromInlineHistory(historyId) {
         // インスタンス設定は復元できないが、メッセージを表示
         alert(`インスタンス設定: ${item.inputs.instanceName} (${item.inputs.instanceUrl})\nこの設定は復元できませんが、設定履歴として保存されています。`);
         break;
+    }
+
+    // インスタンス情報を復元（履歴にインスタンス情報が保存されている場合）
+    if (item.instance && item.instance.url) {
+      const instanceNameSpan = document.getElementById('instanceName');
+
+      if (instanceNameSpan) {
+        // 現在の情報を保存（戻る用）
+        const currentInstanceName = instanceNameSpan.textContent;
+        const currentInstanceTitle = instanceNameSpan.title;
+
+        // インスタンス名表示を復元した内容で更新
+        instanceNameSpan.textContent = item.instance.name;
+        instanceNameSpan.title = `URL: ${item.instance.url}`;
+
+        // 戻るボタンを追加
+        const resetButton = document.createElement('button');
+        resetButton.id = 'instanceResetBtn';
+        resetButton.textContent = 'リセット';
+        resetButton.className = 'mastodon-instance-reset-btn';
+        resetButton.style.cssText = `
+          margin-left: 8px;
+          padding: 2px 6px;
+          font-size: 10px;
+          background: #6364ff;
+          color: white;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+        `;
+
+        resetButton.addEventListener('click', () => {
+          // 現在のページ情報に戻す
+          updateInstanceNameDisplay();
+          // ボタンを削除
+          resetButton.remove();
+        });
+
+        // 既存のボタンがあれば削除
+        const existingButton = document.getElementById('instanceResetBtn');
+        if (existingButton) {
+          existingButton.remove();
+        }
+
+        // ボタンをインスタンス名の後に挿入
+        instanceNameSpan.parentNode.insertBefore(resetButton, instanceNameSpan.nextSibling);
+      }
     }
 
     // UIを更新
@@ -3021,5 +3260,69 @@ function clearInlineHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
     localStorage.removeItem('mastodon-content-search-history');
     showHistoryInline(); // 履歴表示を更新
+  }
+}
+
+// 現在のページからMastodonインスタンス情報を取得
+async function getCurrentPageInstanceInfo() {
+  try {
+    // 現在のページのURLからベースURLを取得
+    const currentUrl = window.location.origin;
+
+    // Mastodon APIエンドポイントを試行
+    const apiUrl = `${currentUrl}/api/v1/instance`;
+    const response = await fetch(apiUrl);
+
+    if (response.ok) {
+      const instanceData = await response.json();
+      return {
+        url: currentUrl,
+        name: instanceData.title || instanceData.short_description || new URL(currentUrl).hostname
+      };
+    }
+  } catch (error) {
+    console.log('インスタンス情報の取得に失敗:', error);
+  }
+
+  // フォールバック: ページタイトルやホスト名から推測
+  try {
+    const hostname = window.location.hostname;
+    const pageTitle = document.title;
+
+    // ページタイトルからインスタンス名を抽出を試行
+    if (pageTitle && pageTitle.includes(' - ')) {
+      const parts = pageTitle.split(' - ');
+      const possibleInstanceName = parts[parts.length - 1];
+      return {
+        url: window.location.origin,
+        name: possibleInstanceName
+      };
+    }
+
+    // ホスト名をそのまま使用
+    return {
+      url: window.location.origin,
+      name: hostname
+    };
+  } catch (error) {
+    return {
+      url: window.location.origin,
+      name: 'Unknown Instance'
+    };
+  }
+}
+
+// インスタンス名を表示エリアに設定
+async function updateInstanceNameDisplay() {
+  const instanceNameSpan = document.getElementById('instanceName');
+  if (!instanceNameSpan) return;
+
+  try {
+    const instanceInfo = await getCurrentPageInstanceInfo();
+    instanceNameSpan.textContent = instanceInfo.name;
+    instanceNameSpan.title = `URL: ${instanceInfo.url}`; // ツールチップでURLを表示
+  } catch (error) {
+    instanceNameSpan.textContent = 'インスタンス取得失敗';
+    console.error('インスタンス名の更新に失敗:', error);
   }
 }
