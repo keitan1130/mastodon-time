@@ -58,6 +58,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   updateInputUI();
 
+  // 履歴ボタンのイベントリスナー
+  document.getElementById('historyBtn').addEventListener('click', togglePopupHistoryView);
+  document.getElementById('history-close').addEventListener('click', hidePopupHistory);
+  document.getElementById('history-clear').addEventListener('click', clearPopupHistory);
+
+  // モーダルの背景クリックで閉じる
+  document.getElementById('history-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'history-modal') {
+      hidePopupHistory();
+    }
+  });
+
   // 入力値の変更を自動保存
   inputField.addEventListener('input', function() {
     const type = document.querySelector('input[name="inputType"]:checked').value;
@@ -468,6 +480,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!/^\d+$/.test(raw)) throw new Error('投稿IDは数字のみです');
         const post = await fetchMastodonPost(raw);
         displayPosts([post]);
+
+        // 検索成功時に履歴を保存
+        savePopupSearchHistory('id', { postId: raw }, [post]);
       } else if (type === 'user') {
         // ユーザー名検索（分離された入力欄使用）
         const username = usernameField.value.trim();
@@ -540,6 +555,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
           const posts = await fetchUserPosts(cleanUsername, fetchOptions);
           displayPosts(posts);
+
+          // 検索成功時に履歴を保存
+          savePopupSearchHistory('user', {
+            username: cleanUsername,
+            timeInput,
+            searchMode,
+            postCount: searchMode === 'postCount' ? parseInt(document.getElementById('postCount').value) || 200 : null,
+            timeRange: searchMode === 'timeRange' ? document.getElementById('timeRange').value.trim() : null
+          }, posts);
         } else {
           // 時間範囲指定モード - 従来の処理
           let timeFilter = null;
@@ -634,6 +658,13 @@ document.addEventListener('DOMContentLoaded', function() {
           // 投稿件数による公開タイムライン検索
           const posts = await fetchPublicTimelineByCount(postCountInput, startTime);
           displayPosts(posts);
+
+          // 検索成功時に履歴を保存
+          savePopupSearchHistory('time', {
+            timeInput: raw,
+            searchMode: 'postCount',
+            postCount: postCountInput
+          }, posts);
         } else {
           // 時間範囲検索（従来の処理）
           if (!raw) return showError('時間を入力してください');
@@ -695,6 +726,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const endId = generateSnowflakeIdFromJst(finalEndTime);
         const posts = await fetchPublicTimelineInRange(startId, endId);
         displayPosts(posts);
+
+        // 検索成功時に履歴を保存
+        savePopupSearchHistory('time', {
+          timeInput: raw,
+          searchMode: 'timeRange',
+          timeRange: timeRangeInput,
+          startTime: finalStartTime,
+          endTime: finalEndTime
+        }, posts);
         }
       }
     } catch (err) {
@@ -2093,6 +2133,802 @@ function initializeInstanceSettings() {
       instanceStatus.style.color = '#ff6b6b';
     }
   });
+}
+
+// 履歴管理機能
+function savePopupSearchHistory(type, inputs, posts) {
+  const history = getPopupSearchHistory();
+
+  const historyItem = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    type,
+    inputs,
+    resultCount: posts.length,
+    posts: posts // 全件保存に変更
+  };
+
+  // 新しいアイテムを先頭に追加
+  history.unshift(historyItem);
+
+  // 10個を超えた場合は古いものを削除
+  if (history.length > 10) {
+    history.splice(10);
+  }
+
+  // ローカルストレージに保存
+  localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
+}
+
+function getPopupSearchHistory() {
+  try {
+    const history = localStorage.getItem('mastodon-popup-search-history');
+    return history ? JSON.parse(history) : [];
+  } catch (e) {
+    console.error('履歴の読み込みに失敗:', e);
+    return [];
+  }
+}
+
+function showPopupHistory() {
+  const modal = document.getElementById('history-modal');
+  const historyList = document.getElementById('history-list');
+
+  const history = getPopupSearchHistory();
+
+  if (history.length === 0) {
+    historyList.innerHTML = '<div class="no-history">履歴がありません</div>';
+  } else {
+    historyList.innerHTML = history.map(item => {
+      const date = new Date(item.timestamp);
+      const timeStr = date.toLocaleString('ja-JP');
+
+      let typeLabel = '';
+      let inputSummary = '';
+
+      switch(item.type) {
+        case 'id':
+          typeLabel = '投稿ID';
+          inputSummary = `ID: ${item.inputs.postId}`;
+          break;
+        case 'user':
+          typeLabel = 'ユーザー';
+          inputSummary = `${item.inputs.username}`;
+          if (item.inputs.timeInput) {
+            inputSummary += ` (${item.inputs.timeInput})`;
+          }
+          if (item.inputs.searchMode === 'postCount') {
+            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+          } else if (item.inputs.timeRange) {
+            inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
+          }
+          break;
+        case 'time':
+          typeLabel = 'パブリック';
+          inputSummary = `${item.inputs.timeInput || '現在時刻'}`;
+          if (item.inputs.searchMode === 'postCount') {
+            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+          } else if (item.inputs.timeRange) {
+            inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
+          }
+          break;
+      }
+
+      return `
+        <div class="history-item" data-history-id="${item.id}">
+          <div class="history-item-header">
+            <span class="history-type">[${typeLabel}]</span>
+            <span class="history-time">${timeStr}</span>
+          </div>
+          <div class="history-summary">${escapeHtml(inputSummary)}</div>
+          <div class="history-result">結果: ${item.resultCount}件</div>
+          <div class="history-actions">
+            <button class="history-restore-btn" data-history-id="${item.id}">復元</button>
+            <button class="history-view-btn" data-history-id="${item.id}">表示</button>
+            <button class="history-save-btn" data-history-id="${item.id}">保存(.txt)</button>
+            <button class="history-delete-btn" data-history-id="${item.id}">削除</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 履歴アイテムのイベントリスナーを設定
+    setupPopupHistoryItemListeners();
+  }
+
+  modal.style.display = 'flex';
+}
+
+function hidePopupHistory() {
+  const modal = document.getElementById('history-modal');
+  modal.style.display = 'none';
+}
+
+function clearPopupHistory() {
+  if (confirm('すべての履歴を削除しますか？')) {
+    localStorage.removeItem('mastodon-popup-search-history');
+    showPopupHistory(); // 履歴表示を更新
+  }
+}
+
+function setupPopupHistoryItemListeners() {
+  // 復元ボタン
+  document.querySelectorAll('.history-restore-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      restorePopupSearchFromHistory(historyId);
+    });
+  });
+
+  // 表示ボタン
+  document.querySelectorAll('.history-view-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      viewPopupHistoryResults(historyId);
+    });
+  });
+
+  // 保存(.txt)ボタン
+  document.querySelectorAll('.history-save-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      savePopupHistoryAsTxt(historyId);
+    });
+  });
+
+  // 削除ボタン
+  document.querySelectorAll('.history-delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      deletePopupHistoryItem(historyId);
+    });
+  });
+}
+
+function restorePopupSearchFromHistory(historyId) {
+  const history = getPopupSearchHistory();
+  const item = history.find(h => h.id === historyId);
+
+  if (!item) return;
+
+  // 入力タイプを設定
+  const typeRadio = document.querySelector(`input[name="inputType"][value="${item.type}"]`);
+  if (typeRadio) {
+    typeRadio.checked = true;
+  }
+
+  // 各入力フィールドを復元
+  switch(item.type) {
+    case 'id':
+      document.getElementById('postIdOrTime').value = item.inputs.postId;
+      break;
+
+    case 'user':
+      const usernameField = document.getElementById('usernameField');
+      const timeField = document.getElementById('timeField');
+      if (usernameField) usernameField.value = item.inputs.username;
+      if (item.inputs.timeInput && timeField) {
+        timeField.value = item.inputs.timeInput;
+      }
+
+      // 検索モードを復元
+      if (item.inputs.searchMode) {
+        const modeRadio = document.querySelector(`input[name="searchMode"][value="${item.inputs.searchMode}"]`);
+        if (modeRadio) {
+          modeRadio.checked = true;
+        }
+
+        if (item.inputs.searchMode === 'postCount' && item.inputs.postCount) {
+          const postCountField = document.getElementById('postCount');
+          if (postCountField) postCountField.value = item.inputs.postCount;
+        } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+          const timeRangeSelect = document.getElementById('timeRange');
+          if (timeRangeSelect) timeRangeSelect.value = item.inputs.timeRange;
+        }
+      }
+      break;
+
+    case 'time':
+      document.getElementById('postIdOrTime').value = item.inputs.timeInput || '';
+
+      // 検索モードを復元
+      if (item.inputs.searchMode) {
+        const modeRadio = document.querySelector(`input[name="searchMode"][value="${item.inputs.searchMode}"]`);
+        if (modeRadio) {
+          modeRadio.checked = true;
+        }
+
+        if (item.inputs.searchMode === 'postCount' && item.inputs.postCount) {
+          const postCountField = document.getElementById('postCount');
+          if (postCountField) postCountField.value = item.inputs.postCount;
+        } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+          const timeRangeSelect = document.getElementById('timeRange');
+          if (timeRangeSelect) timeRangeSelect.value = item.inputs.timeRange;
+        }
+      }
+      break;
+  }
+
+  // UIを更新
+  updateInputUI();
+  updateSearchModeUI();
+  updateGeneratedTimeRange();
+
+  // 履歴モーダルを閉じる
+  hidePopupHistory();
+}
+
+function viewPopupHistoryResults(historyId) {
+  const history = getPopupSearchHistory();
+  const item = history.find(h => h.id === historyId);
+
+  if (!item || !item.posts) return;
+
+  // 結果を表示
+  displayPosts(item.posts);
+
+  // 履歴モーダルを閉じる
+  hidePopupHistory();
+}
+
+function deletePopupHistoryItem(historyId) {
+  if (confirm('この履歴を削除しますか？')) {
+    let history = getPopupSearchHistory();
+    history = history.filter(h => h.id !== historyId);
+    localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
+    showPopupHistory(); // 履歴表示を更新
+  }
+}
+
+function savePopupHistoryAsTxt(historyId) {
+  const history = getPopupSearchHistory();
+  const item = history.find(h => h.id === historyId);
+
+  if (!item || !item.posts) {
+    alert('保存する履歴データが見つかりません');
+    return;
+  }
+
+  // ファイル名を生成（履歴の日時を使用）
+  const timestamp = new Date(item.timestamp);
+  const year = timestamp.getFullYear();
+  const month = String(timestamp.getMonth() + 1).padStart(2, '0');
+  const day = String(timestamp.getDate()).padStart(2, '0');
+  const hour = String(timestamp.getHours()).padStart(2, '0');
+  const minute = String(timestamp.getMinutes()).padStart(2, '0');
+  const second = String(timestamp.getSeconds()).padStart(2, '0');
+
+  // 検索タイプと内容を含むファイル名
+  let typeLabel = '';
+  let inputSummary = '';
+
+  switch(item.type) {
+    case 'id':
+      typeLabel = 'ID';
+      inputSummary = item.inputs.postId;
+      break;
+    case 'user':
+      typeLabel = 'ユーザー';
+      inputSummary = item.inputs.username;
+      break;
+    case 'time':
+      typeLabel = 'パブリック';
+      inputSummary = item.inputs.timeInput || '現在時刻';
+      break;
+  }
+
+  const filename = `mastodon_履歴_${typeLabel}_${year}${month}${day}_${hour}${minute}${second}.txt`;
+
+  // txtファイルのコンテンツを生成（既存のdownloadPostsAsTxt関数と同じ形式）
+  let content = `Mastodon検索結果 (履歴)\n`;
+  content += `検索タイプ: ${typeLabel}\n`;
+  content += `検索内容: ${inputSummary}\n`;
+  content += `検索日時: ${timestamp.toLocaleString('ja-JP')}\n`;
+  content += `投稿件数: ${item.posts.length}件\n`;
+  content += `===========================================\n\n`;
+
+  item.posts.forEach((post, index) => {
+    const postInfo = getPostDisplayInfo(post);
+
+    content += `--- 投稿 ${index + 1} ---\n`;
+    content += `ID: ${post.id}\n`;
+
+    if (postInfo.isBoost) {
+      content += `ブースト者: ${postInfo.boosterUser} (${postInfo.boosterUsername})\n`;
+      content += `ブースト日時: ${new Date(postInfo.boostTime).toLocaleString('ja-JP')}\n`;
+      content += `元投稿者: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
+      content += `元投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
+    } else {
+      content += `投稿者: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
+      content += `投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
+    }
+
+    content += `URL: ${postInfo.displayUrl}\n`;
+    content += `内容:\n${postInfo.displayContent}\n`;
+
+    if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
+      content += `添付ファイル: ${postInfo.mediaAttachments.map(m => `${m.type}(${m.url})`).join(', ')}\n`;
+    }
+
+    content += `\n`;
+  });
+
+  // ダウンロード実行
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 履歴表示と検索フォーム表示を切り替える関数（popup版）
+function togglePopupHistoryView() {
+  const historyBtn = document.getElementById('historyBtn');
+  const viewerContent = document.getElementById('viewer-content');
+  const isShowingHistory = historyBtn.textContent === '戻る';
+
+  if (isShowingHistory) {
+    // 履歴表示中 → 検索フォームに戻る
+    showPopupSearchForm();
+    historyBtn.textContent = '履歴';
+  } else {
+    // 検索フォーム表示中 → 履歴表示
+    showPopupHistoryInline();
+    historyBtn.textContent = '戻る';
+  }
+
+  // コンテンツエリアを展開
+  viewerContent.style.display = 'block';
+  const toggleBtn = document.getElementById('toggle');
+  toggleBtn.textContent = '▼';
+}
+
+// インライン履歴表示関数（popup版）
+function showPopupHistoryInline() {
+  const viewerContent = document.getElementById('viewer-content');
+  const history = getPopupSearchHistory();
+
+  let historyHtml = '';
+
+  if (history.length === 0) {
+    historyHtml = '<div class="no-history">履歴がありません</div>';
+  } else {
+    historyHtml = '<div class="history-inline-title">検索履歴</div>';
+    historyHtml += history.map(item => {
+      const date = new Date(item.timestamp);
+      const timeStr = date.toLocaleString('ja-JP');
+
+      let typeLabel = '';
+      let inputSummary = '';
+
+      switch(item.type) {
+        case 'id':
+          typeLabel = '投稿ID';
+          inputSummary = `ID: ${item.inputs.postId}`;
+          break;
+        case 'user':
+          typeLabel = 'ユーザー';
+          inputSummary = `${item.inputs.username}`;
+          if (item.inputs.timeInput) {
+            inputSummary += ` (${item.inputs.timeInput})`;
+          }
+          if (item.inputs.searchMode === 'postCount') {
+            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+          } else if (item.inputs.timeRange) {
+            inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
+          }
+          break;
+        case 'time':
+          typeLabel = 'パブリック';
+          inputSummary = `${item.inputs.timeInput || '現在時刻'}`;
+          if (item.inputs.searchMode === 'postCount') {
+            inputSummary += ` [件数: ${item.inputs.postCount}件]`;
+          } else if (item.inputs.timeRange) {
+            inputSummary += ` [範囲: ${item.inputs.timeRange}]`;
+          }
+          break;
+      }
+
+      return `
+        <div class="history-inline-item" data-history-id="${item.id}">
+          <div class="history-inline-header">
+            <span class="history-inline-type">[${typeLabel}]</span>
+            <span class="history-inline-time">${timeStr}</span>
+          </div>
+          <div class="history-inline-summary">${escapeHtml(inputSummary)}</div>
+          <div class="history-inline-result">結果: ${item.resultCount}件</div>
+          <div class="history-inline-actions">
+            <button class="history-inline-restore-btn" data-history-id="${item.id}">復元</button>
+            <button class="history-inline-view-btn" data-history-id="${item.id}">表示</button>
+            <button class="history-inline-save-btn" data-history-id="${item.id}">保存(.txt)</button>
+            <button class="history-inline-delete-btn" data-history-id="${item.id}">削除</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    historyHtml += `
+      <div class="history-inline-footer">
+        <button id="history-inline-clear" class="history-inline-clear-btn">すべての履歴をクリア</button>
+      </div>
+    `;
+  }
+
+  viewerContent.innerHTML = historyHtml;
+
+  // インライン履歴のイベントリスナーを設定
+  setupPopupInlineHistoryListeners();
+}
+
+// 検索フォームを表示する関数（popup版）
+function showPopupSearchForm() {
+  const viewerContent = document.getElementById('viewer-content');
+
+  // 元の検索フォームを再構築
+  viewerContent.innerHTML = `
+      <div class="input-type-selector">
+        <label>入力方式:</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="inputType" value="time" checked>
+            <span>パブリック</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="inputType" value="user">
+            <span>ユーザー名</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="inputType" value="id">
+            <span>投稿ID</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="main-input" class="input-group">
+        <label for="postIdOrTime">開始時刻:</label>
+        <input type="text" id="postIdOrTime" placeholder="入力してください">
+      </div>
+
+      <div id="userInput" class="input-group" style="display: none;">
+        <label for="usernameField">ユーザー名:</label>
+        <input type="text" id="usernameField" placeholder="@keitan または @keitan@mastodon.social">
+      </div>
+
+      <div id="timeInput" class="input-group" style="display: none;">
+        <label for="timeField">開始時刻:</label>
+        <input type="text" id="timeField" placeholder="YYYY-M-D HH:MM:SS">
+      </div>
+
+      <div id="searchModeSelector" class="input-group" style="display: none;">
+        <label>検索方式:</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="searchMode" value="timeRange" checked>
+            <span>時間範囲</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="searchMode" value="postCount">
+            <span>投稿件数</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="timeRangeSelector" class="input-group">
+        <label for="timeRange">時間:</label>
+        <input type="text" id="timeRange" placeholder="HH:MM:SS" style="width: 120px;">
+        <span>（開始時刻に追加）</span>
+      </div>
+
+      <div id="postCountSelector" class="input-group" style="display: none;">
+        <label for="postCount">取得件数:</label>
+        <input type="number" id="postCount" placeholder="200" min="-10000" max="10000" value="200" style="width: 80px;">
+        <span>件（+未来,-過去,最大10000件）</span>
+        <div id="searchTimeSelector" style="display: none; margin-top: 8px;">
+          <label for="searchTime">検索時間:</label>
+          <input type="text" id="searchTime" placeholder="24:00:00" value="24:00:00" style="width: 80px;">
+          <span>（HH:MM:SS形式、since_idとmax_idの間隔）</span>
+        </div>
+      </div>
+
+      <div id="generatedTimeDisplay" class="input-group">
+        <label for="generatedTime">終了時刻:</label>
+        <input type="text" id="generatedTime" placeholder="YYYY-M-D HH:MM:SS" style="width: 100%;">
+      </div>
+
+      <button id="fetchPost" class="fetch-btn">取得</button>
+
+      <div id="result" class="result"></div>
+  `;
+
+  // 検索フォームのイベントリスナーを再設定
+  setupPopupSearchFormListeners();
+}
+
+// インライン履歴のイベントリスナー設定（popup版）
+function setupPopupInlineHistoryListeners() {
+  // 復元ボタン
+  document.querySelectorAll('.history-inline-restore-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      restorePopupSearchFromInlineHistory(historyId);
+    });
+  });
+
+  // 表示ボタン
+  document.querySelectorAll('.history-inline-view-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      viewPopupHistoryResultsInline(historyId);
+    });
+  });
+
+  // 保存(.txt)ボタン
+  document.querySelectorAll('.history-inline-save-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      savePopupHistoryAsTxt(historyId);
+    });
+  });
+
+  // 削除ボタン
+  document.querySelectorAll('.history-inline-delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const historyId = parseInt(e.target.dataset.historyId);
+      deletePopupInlineHistoryItem(historyId);
+    });
+  });
+
+  // すべてクリアボタン
+  const clearBtn = document.getElementById('history-inline-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', clearPopupInlineHistory);
+  }
+}
+
+// 検索フォームのイベントリスナー再設定（popup版）
+function setupPopupSearchFormListeners() {
+  // ラジオボタンの変更イベント
+  const radioButtons = document.querySelectorAll('input[name="inputType"]');
+  radioButtons.forEach(radio => {
+    radio.addEventListener('change', updateInputUI);
+    radio.addEventListener('change', function() {
+      localStorage.setItem('mastodon-popup-inputType', this.value);
+    });
+  });
+
+  // 検索方式の切り替えイベント
+  const searchModeButtons = document.querySelectorAll('input[name="searchMode"]');
+  searchModeButtons.forEach(radio => {
+    radio.addEventListener('change', updateSearchModeUI);
+    radio.addEventListener('change', function() {
+      localStorage.setItem('mastodon-popup-searchMode', this.value);
+    });
+  });
+
+  // その他のイベントリスナーも再設定
+  const mainInput = document.getElementById('postIdOrTime');
+  const usernameField = document.getElementById('usernameField');
+  const timeField = document.getElementById('timeField');
+  const timeRange = document.getElementById('timeRange');
+
+  if (mainInput) {
+    mainInput.addEventListener('input', function() {
+      const type = document.querySelector('input[name="inputType"]:checked').value;
+      if (type === 'id') {
+        localStorage.setItem('mastodon-postId', this.value);
+      } else if (type === 'time') {
+        localStorage.setItem('mastodon-timeRange', this.value);
+        updateGeneratedTimeRange();
+      }
+    });
+  }
+
+  if (usernameField) {
+    usernameField.addEventListener('input', function() {
+      localStorage.setItem('mastodon-username', this.value);
+    });
+  }
+
+  if (timeField) {
+    timeField.addEventListener('input', function() {
+      localStorage.setItem('mastodon-userTime', this.value);
+      updateGeneratedTimeRange();
+    });
+  }
+
+  if (timeRange) {
+    timeRange.addEventListener('input', function() {
+      localStorage.setItem('mastodon-timeRangeInput', this.value);
+      updateGeneratedTimeRange();
+    });
+  }
+
+  // 他のイベントリスナーも設定
+  const postCountField = document.getElementById('postCount');
+  const searchTimeField = document.getElementById('searchTime');
+  const generatedTimeField = document.getElementById('generatedTime');
+  const fetchBtn = document.getElementById('fetchPost');
+
+  if (postCountField) {
+    postCountField.addEventListener('input', function() {
+      localStorage.setItem('mastodon-postCount', this.value);
+      updateSearchTimeVisibility();
+    });
+  }
+
+  if (searchTimeField) {
+    searchTimeField.addEventListener('input', function() {
+      localStorage.setItem('mastodon-searchTime', this.value);
+    });
+  }
+
+  if (generatedTimeField) {
+    generatedTimeField.addEventListener('input', updateTimeRangeFromEndTime);
+  }
+
+  if (fetchBtn) {
+    fetchBtn.addEventListener('click', handleSearch);
+  }
+
+  // 設定を復元してUIを更新
+  restorePopupFormSettings();
+  updateInputUI();
+  updateSearchModeUI();
+}
+
+// フォーム設定復元（popup版）
+function restorePopupFormSettings() {
+  // 前回の検索方式を復元
+  const savedSearchMode = localStorage.getItem('mastodon-popup-searchMode');
+  if (savedSearchMode) {
+    const targetSearchMode = document.querySelector(`input[name="searchMode"][value="${savedSearchMode}"]`);
+    if (targetSearchMode) {
+      targetSearchMode.checked = true;
+    }
+  }
+
+  // 前回の選択状態を復元
+  const savedInputType = localStorage.getItem('mastodon-popup-inputType');
+  if (savedInputType) {
+    const targetRadio = document.querySelector(`input[name="inputType"][value="${savedInputType}"]`);
+    if (targetRadio) {
+      targetRadio.checked = true;
+    }
+  }
+
+  // 保存された値を復元
+  const savedSearchTime = localStorage.getItem('mastodon-searchTime');
+  if (savedSearchTime) {
+    const searchTimeField = document.getElementById('searchTime');
+    if (searchTimeField) searchTimeField.value = savedSearchTime;
+  }
+
+  const savedPostCount = localStorage.getItem('mastodon-postCount');
+  if (savedPostCount) {
+    const postCountField = document.getElementById('postCount');
+    if (postCountField) postCountField.value = savedPostCount;
+  }
+}
+
+// インライン履歴から復元（popup版）
+function restorePopupSearchFromInlineHistory(historyId) {
+  const history = getPopupSearchHistory();
+  const item = history.find(h => h.id === historyId);
+
+  if (!item) return;
+
+  // 検索フォームに戻る
+  showPopupSearchForm();
+  const historyBtn = document.getElementById('historyBtn');
+  historyBtn.textContent = '履歴';
+
+  // 復元処理を少し遅らせて、フォームが構築されてから実行
+  setTimeout(() => {
+    // 入力タイプを設定
+    const typeRadio = document.querySelector(`input[name="inputType"][value="${item.type}"]`);
+    if (typeRadio) {
+      typeRadio.checked = true;
+    }
+
+    // 各入力フィールドを復元
+    switch(item.type) {
+      case 'id':
+        const postIdField = document.getElementById('postIdOrTime');
+        if (postIdField) postIdField.value = item.inputs.postId;
+        break;
+
+      case 'user':
+        const usernameField = document.getElementById('usernameField');
+        const timeField = document.getElementById('timeField');
+        if (usernameField) usernameField.value = item.inputs.username;
+        if (item.inputs.timeInput && timeField) {
+          timeField.value = item.inputs.timeInput;
+        }
+
+        // 検索モードを復元
+        if (item.inputs.searchMode) {
+          const modeRadio = document.querySelector(`input[name="searchMode"][value="${item.inputs.searchMode}"]`);
+          if (modeRadio) {
+            modeRadio.checked = true;
+          }
+
+          if (item.inputs.searchMode === 'postCount' && item.inputs.postCount) {
+            const postCountField = document.getElementById('postCount');
+            if (postCountField) postCountField.value = item.inputs.postCount;
+          } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+            const timeRangeSelect = document.getElementById('timeRange');
+            if (timeRangeSelect) timeRangeSelect.value = item.inputs.timeRange;
+          }
+        }
+        break;
+
+      case 'time':
+        const timeInputField = document.getElementById('postIdOrTime');
+        if (timeInputField) timeInputField.value = item.inputs.timeInput || '';
+
+        // 検索モードを復元
+        if (item.inputs.searchMode) {
+          const modeRadio = document.querySelector(`input[name="searchMode"][value="${item.inputs.searchMode}"]`);
+          if (modeRadio) {
+            modeRadio.checked = true;
+          }
+
+          if (item.inputs.searchMode === 'postCount' && item.inputs.postCount) {
+            const postCountField = document.getElementById('postCount');
+            if (postCountField) postCountField.value = item.inputs.postCount;
+          } else if (item.inputs.searchMode === 'timeRange' && item.inputs.timeRange) {
+            const timeRangeSelect = document.getElementById('timeRange');
+            if (timeRangeSelect) timeRangeSelect.value = item.inputs.timeRange;
+          }
+        }
+        break;
+    }
+
+    // UIを更新
+    updateInputUI();
+    updateSearchModeUI();
+    updateGeneratedTimeRange();
+  }, 100);
+}
+
+// インライン履歴結果表示（popup版）
+function viewPopupHistoryResultsInline(historyId) {
+  const history = getPopupSearchHistory();
+  const item = history.find(h => h.id === historyId);
+
+  if (!item || !item.posts) return;
+
+  // 検索フォームに戻る
+  showPopupSearchForm();
+  const historyBtn = document.getElementById('historyBtn');
+  historyBtn.textContent = '履歴';
+
+  // 少し遅らせて結果を表示
+  setTimeout(() => {
+    displayPosts(item.posts);
+  }, 100);
+}
+
+// インライン履歴削除（popup版）
+function deletePopupInlineHistoryItem(historyId) {
+  if (confirm('この履歴を削除しますか？')) {
+    let history = getPopupSearchHistory();
+    history = history.filter(h => h.id !== historyId);
+    localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
+    showPopupHistoryInline(); // 履歴表示を更新
+  }
+}
+
+// インライン履歴すべてクリア（popup版）
+function clearPopupInlineHistory() {
+  if (confirm('すべての履歴を削除しますか？')) {
+    localStorage.removeItem('mastodon-popup-search-history');
+    showPopupHistoryInline(); // 履歴表示を更新
+  }
 }
 
 console.log('Mastodon Post Viewer Extension loaded');

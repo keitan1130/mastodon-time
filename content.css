@@ -50,6 +50,21 @@
   color: #fff;
 }
 
+.mastodon-history-btn {
+  background: #6364ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-btn:hover {
+  background: #5853d4;
+}
+
 .mastodon-toggle-btn {
   background: none;
   border: 1px solid transparent;
@@ -902,4 +917,318 @@
 
 .mastodon-post-item:hover::before {
   transform: scaleX(1);
+}
+
+/* 履歴モーダルのスタイル */
+.mastodon-history-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.mastodon-history-modal-content {
+  background: #1a1e27;
+  border: 1px solid #393f4f;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mastodon-history-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: #282c37;
+  border-bottom: 1px solid #393f4f;
+}
+
+.mastodon-history-modal-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mastodon-history-close {
+  background: none;
+  border: none;
+  color: #9baec8;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.mastodon-history-modal-body {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+}
+
+.mastodon-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.mastodon-no-history {
+  text-align: center;
+  color: #9baec8;
+  padding: 20px;
+  font-style: italic;
+}
+
+.mastodon-history-item {
+  background: #282c37;
+  border: 1px solid #393f4f;
+  border-radius: 6px;
+  padding: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-item:hover {
+  background: #2f3441;
+}
+
+.mastodon-history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mastodon-history-type {
+  background: #6364ff;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mastodon-history-time {
+  color: #9baec8;
+  font-size: 12px;
+}
+
+.mastodon-history-summary {
+  color: #fff;
+  font-size: 13px;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.mastodon-history-result {
+  color: #9baec8;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.mastodon-history-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.mastodon-history-restore-btn,
+.mastodon-history-view-btn,
+.mastodon-history-save-btn,
+.mastodon-history-delete-btn {
+  background: #393f4f;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-restore-btn:hover {
+  background: #6364ff;
+}
+
+.mastodon-history-view-btn:hover {
+  background: #4caf50;
+}
+
+.mastodon-history-save-btn:hover {
+  background: #ff9800;
+}
+
+.mastodon-history-delete-btn:hover {
+  background: #f44336;
+}
+
+.mastodon-history-modal-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 15px;
+  border-top: 1px solid #393f4f;
+}
+
+.mastodon-history-clear-btn {
+  background: #f44336;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-clear-btn:hover {
+  background: #d32f2f;
+}
+
+/* インライン履歴表示のスタイル */
+.mastodon-history-inline-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #6364ff;
+  text-align: center;
+}
+
+.mastodon-history-inline-item {
+  background: rgba(57, 63, 79, 0.8);
+  border: 1px solid #393f4f;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-inline-item:hover {
+  background: rgba(57, 63, 79, 1);
+}
+
+.mastodon-history-inline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mastodon-history-inline-type {
+  background: #6364ff;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.mastodon-history-inline-time {
+  color: #9baec8;
+  font-size: 11px;
+}
+
+.mastodon-history-inline-summary {
+  color: #fff;
+  font-size: 13px;
+  margin-bottom: 5px;
+  word-break: break-all;
+}
+
+.mastodon-history-inline-result {
+  color: #9baec8;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.mastodon-history-inline-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mastodon-history-inline-restore-btn,
+.mastodon-history-inline-view-btn,
+.mastodon-history-inline-save-btn,
+.mastodon-history-inline-delete-btn {
+  background: #393f4f;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-inline-restore-btn:hover {
+  background: #6364ff;
+}
+
+.mastodon-history-inline-view-btn:hover {
+  background: #4caf50;
+}
+
+.mastodon-history-inline-save-btn:hover {
+  background: #ff9800;
+}
+
+.mastodon-history-inline-delete-btn:hover {
+  background: #f44336;
+}
+
+.mastodon-history-inline-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 15px;
+  margin-top: 15px;
+  border-top: 1px solid #393f4f;
+}
+
+.mastodon-history-inline-clear-btn {
+  background: #d32f2f;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mastodon-history-inline-clear-btn:hover {
+  background: #b71c1c;
+}
+
+.mastodon-no-history {
+  text-align: center;
+  padding: 30px 20px;
+  color: #9baec8;
+  font-size: 14px;
+  font-style: italic;
+  background: rgba(99, 100, 255, 0.05);
+  border: 1px solid #393f4f;
+  border-radius: 6px;
 }

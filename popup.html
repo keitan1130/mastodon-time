@@ -244,11 +244,204 @@
           --error-border-color: rgba(255, 107, 107, 0.2);
         }
       }
+    .history-clear-btn:hover {
+      background: #d32f2f;
+    }
+
+    /* 履歴モーダルのスタイル */
+    .history-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+
+    .history-modal-content {
+      background: #1a1e27;
+      border: 1px solid #393f4f;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .history-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background: #282c37;
+      border-bottom: 1px solid #393f4f;
+    }
+
+    .history-modal-header h3 {
+      margin: 0;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .history-close {
+      background: none;
+      border: none;
+      color: #9baec8;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0;
+      width: 25px;
+      height: 25px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 4px;
+      transition: background-color 0.2s ease;
+    }
+
+    .history-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .history-modal-body {
+      flex: 1;
+      overflow: auto;
+      padding: 15px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .no-history {
+      text-align: center;
+      color: #9baec8;
+      padding: 20px;
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    .history-item {
+      background: #282c37;
+      border: 1px solid #393f4f;
+      border-radius: 6px;
+      padding: 10px;
+      transition: background-color 0.2s ease;
+    }
+
+    .history-item:hover {
+      background: #2f3441;
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .history-type {
+      background: #6364ff;
+      color: #fff;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .history-time {
+      color: #9baec8;
+      font-size: 11px;
+    }
+
+    .history-summary {
+      color: #fff;
+      font-size: 12px;
+      margin-bottom: 3px;
+      word-break: break-all;
+    }
+
+    .history-result {
+      color: #9baec8;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .history-restore-btn,
+    .history-view-btn,
+    .history-save-btn,
+    .history-delete-btn {
+      background: #393f4f;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      padding: 3px 6px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .history-restore-btn:hover {
+      background: #6364ff;
+    }
+
+    .history-view-btn:hover {
+      background: #4caf50;
+    }
+
+    .history-save-btn:hover {
+      background: #ff9800;
+    }
+
+    .history-delete-btn:hover {
+      background: #f44336;
+    }
+
+    .history-modal-footer {
+      display: flex;
+      justify-content: center;
+      padding-top: 10px;
+      border-top: 1px solid #393f4f;
+    }
+
+    .history-clear-btn {
+      background: #f44336;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .history-clear-btn:hover {
+      background: #d32f2f;
+    }
     </style>
   </head>
   <body>
     <div class="container">
-      <h2>投稿検索</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin: 0;">投稿検索</h2>
+        <button id="historyBtn" style="background: #6364ff; color: #fff; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">履歴</button>
+      </div>
 
       <!-- インスタンス設定セクション -->
       <div class="instance-settings">
@@ -336,6 +529,154 @@
 
       <div id="result"></div>
     </div>
+
+    <!-- 履歴モーダル -->
+    <div id="history-modal" class="history-modal" style="display: none;">
+      <div class="history-modal-content">
+        <div class="history-modal-header">
+          <h3>検索履歴</h3>
+          <button id="history-close" class="history-close">&times;</button>
+        </div>
+        <div class="history-modal-body">
+          <div id="history-list" class="history-list">
+            履歴がありません
+          </div>
+          <div class="history-modal-footer">
+            <button id="history-clear" class="history-clear-btn">履歴をクリア</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* インライン履歴表示のスタイル */
+      .history-inline-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #fff;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #6364ff;
+        text-align: center;
+      }
+
+      .history-inline-item {
+        background: rgba(57, 63, 79, 0.8);
+        border: 1px solid #393f4f;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
+        transition: background-color 0.2s ease;
+      }
+
+      .history-inline-item:hover {
+        background: rgba(57, 63, 79, 1);
+      }
+
+      .history-inline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .history-inline-type {
+        background: #6364ff;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+      }
+
+      .history-inline-time {
+        color: #9baec8;
+        font-size: 11px;
+      }
+
+      .history-inline-summary {
+        color: #fff;
+        font-size: 13px;
+        margin-bottom: 5px;
+        word-break: break-all;
+      }
+
+      .history-inline-result {
+        color: #9baec8;
+        font-size: 11px;
+        margin-bottom: 10px;
+      }
+
+      .history-inline-actions {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+
+      .history-inline-restore-btn,
+      .history-inline-view-btn,
+      .history-inline-save-btn,
+      .history-inline-delete-btn {
+        background: #393f4f;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        padding: 3px 6px;
+        font-size: 10px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      .history-inline-restore-btn:hover {
+        background: #6364ff;
+      }
+
+      .history-inline-view-btn:hover {
+        background: #4caf50;
+      }
+
+      .history-inline-save-btn:hover {
+        background: #ff9800;
+      }
+
+      .history-inline-delete-btn:hover {
+        background: #f44336;
+      }
+
+      .history-inline-footer {
+        display: flex;
+        justify-content: center;
+        padding-top: 15px;
+        margin-top: 15px;
+        border-top: 1px solid #393f4f;
+      }
+
+      .history-inline-clear-btn {
+        background: #d32f2f;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      .history-inline-clear-btn:hover {
+        background: #b71c1c;
+      }
+
+      .no-history {
+        text-align: center;
+        padding: 30px 20px;
+        color: #9baec8;
+        font-size: 14px;
+        font-style: italic;
+        background: rgba(99, 100, 255, 0.05);
+        border: 1px solid #393f4f;
+        border-radius: 6px;
+      }
+    </style>
 
     <script src="popup.js"></script>
   </body>
