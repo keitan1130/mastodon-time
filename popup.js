@@ -469,7 +469,7 @@ function showPostPreview(element, post) {
 
   // コンテンツの作成（短縮版）
   let content = '';
-  
+
   if (postInfo.isBoost) {
     content += `<div style="color: #6364ff; margin-bottom: 6px; font-size: 11px;">
       <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong>
@@ -503,18 +503,18 @@ function showPostPreview(element, post) {
   // popup用の位置調整（より制限的）
   const rect = element.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
-  
+
   // popupの境界を考慮
   const popupWidth = window.innerWidth;
   const popupHeight = window.innerHeight;
-  
+
   let left = rect.left + rect.width + 8;
   let top = rect.top;
 
   // 右端を超える場合は左側に表示
   if (left + tooltipRect.width > popupWidth - 5) {
     left = rect.left - tooltipRect.width - 8;
-    
+
     // それでも左端を超える場合は要素の上に表示
     if (left < 5) {
       left = Math.max(5, (popupWidth - tooltipRect.width) / 2);
@@ -3163,60 +3163,60 @@ function showPopupSearchForm() {
 
   // 元の検索フォームを再構築
   mainContent.innerHTML = `
-      <div class="input-type-selector">
+      <div class="mastodon-input-type-selector">
         <label>入力方式:</label>
-        <div class="radio-group">
-          <label class="radio-label">
+        <div class="mastodon-radio-group">
+          <label class="mastodon-radio-label">
             <input type="radio" name="inputType" value="time" checked>
             <span>パブリック</span>
           </label>
-          <label class="radio-label">
+          <label class="mastodon-radio-label">
             <input type="radio" name="inputType" value="user">
             <span>ユーザー名</span>
           </label>
-          <label class="radio-label">
+          <label class="mastodon-radio-label">
             <input type="radio" name="inputType" value="id">
             <span>投稿ID</span>
           </label>
         </div>
       </div>
 
-      <div id="main-input" class="input-group">
+      <div id="main-input" class="mastodon-input-group">
         <label for="postIdOrTime">開始時刻:</label>
         <input type="text" id="postIdOrTime" placeholder="入力してください">
       </div>
 
-      <div id="userInput" class="input-group" style="display: none;">
+      <div id="userInput" class="mastodon-input-group" style="display: none;">
         <label for="usernameField">ユーザー名:</label>
         <input type="text" id="usernameField" placeholder="@keitan または @keitan@mastodon.social">
       </div>
 
-      <div id="timeInput" class="input-group" style="display: none;">
+      <div id="timeInput" class="mastodon-input-group" style="display: none;">
         <label for="timeField">開始時刻:</label>
         <input type="text" id="timeField" placeholder="YYYY-M-D HH:MM:SS">
       </div>
 
-      <div id="searchModeSelector" class="input-group" style="display: none;">
+      <div id="searchModeSelector" class="mastodon-input-group" style="display: none;">
         <label>検索方式:</label>
-        <div class="radio-group">
-          <label class="radio-label">
+        <div class="mastodon-radio-group">
+          <label class="mastodon-radio-label">
             <input type="radio" name="searchMode" value="timeRange" checked>
             <span>時間範囲</span>
           </label>
-          <label class="radio-label">
+          <label class="mastodon-radio-label">
             <input type="radio" name="searchMode" value="postCount">
             <span>投稿件数</span>
           </label>
         </div>
       </div>
 
-      <div id="timeRangeSelector" class="input-group">
+      <div id="timeRangeSelector" class="mastodon-input-group">
         <label for="timeRange">時間:</label>
         <input type="text" id="timeRange" placeholder="HH:MM:SS" style="width: 120px;">
         <span>（開始時刻に追加）</span>
       </div>
 
-      <div id="postCountSelector" class="input-group" style="display: none;">
+      <div id="postCountSelector" class="mastodon-input-group" style="display: none;">
         <label for="postCount">取得件数:</label>
         <input type="number" id="postCount" placeholder="200" min="-10000" max="10000" value="200" style="width: 80px;">
         <span>件（+未来,-過去,最大10000件）</span>
@@ -3227,14 +3227,14 @@ function showPopupSearchForm() {
         </div>
       </div>
 
-      <div id="generatedTimeDisplay" class="input-group">
+      <div id="generatedTimeDisplay" class="mastodon-input-group">
         <label for="generatedTime">終了時刻:</label>
         <input type="text" id="generatedTime" placeholder="YYYY-M-D HH:MM:SS" style="width: 100%;">
       </div>
 
-      <button id="fetchPost" class="fetch-btn">取得</button>
+      <button id="fetchPost" class="mastodon-fetch-btn">取得</button>
 
-      <div id="result" class="result"></div>
+      <div id="result" class="mastodon-result"></div>
   `;
 
   // 検索フォームのイベントリスナーを再設定
