@@ -454,92 +454,88 @@ function showPostPreview(element, post) {
     background: #1a1e27;
     border: 1px solid #393f4f;
     border-radius: 8px;
-    padding: 12px;
-    max-width: 280px;
-    max-height: 200px;
+    padding: 15px;
+    max-width: 400px;
+    max-height: 500px;
     overflow-y: auto;
     z-index: 10000;
     color: #fff;
     font-family: system-ui, -apple-system, sans-serif;
-    font-size: 12px;
-    line-height: 1.3;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     word-wrap: break-word;
   `;
 
-  // コンテンツの作成（短縮版）
+  // コンテンツの作成
   let content = '';
-
+  
   if (postInfo.isBoost) {
-    content += `<div style="color: #6364ff; margin-bottom: 6px; font-size: 11px;">
-      <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong>
+    content += `<div style="color: #6364ff; margin-bottom: 8px; font-size: 12px;">
+      <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong> がブーストしました
     </div>`;
   }
 
-  content += `<div style="font-weight: bold; margin-bottom: 4px; color: #fff; font-size: 12px;">
+  content += `<div style="font-weight: bold; margin-bottom: 5px; color: #fff;">
     ${escapeHtml(postInfo.displayUser)}
   </div>`;
 
-  content += `<div style="margin-bottom: 6px; color: #9baec8; font-size: 10px;">
+  content += `<div style="margin-bottom: 8px; color: #9baec8; font-size: 12px;">
     ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}
   </div>`;
 
-  // 短縮されたコンテンツ
-  const displayContent = postInfo.displayContent.slice(0, 150);
-  content += `<div style="margin-bottom: 8px;">
-    ${escapeHtml(displayContent)}${postInfo.displayContent.length > 150 ? '...' : ''}
+  const displayContent = postInfo.displayContent.slice(0, 300);
+  content += `<div style="margin-bottom: 10px;">
+    ${escapeHtml(displayContent)}${postInfo.displayContent.length > 300 ? '...' : ''}
   </div>`;
 
-  // メディア情報（簡略化）
+  // メディア情報
   if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
-    content += `<div style="color: #6364ff; font-size: 10px;">
-      📎 ${postInfo.mediaAttachments.length}件
+    const mediaTypes = postInfo.mediaAttachments.map(m => m.type).join(', ');
+    content += `<div style="color: #6364ff; font-size: 12px; margin-top: 8px;">
+      📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)
     </div>`;
   }
+
+  // カード情報
+  if (postInfo.card) {
+    content += `<div style="color: #9baec8; font-size: 11px; margin-top: 5px;">
+      🔗 ${escapeHtml(postInfo.card.title || postInfo.card.url || '')}
+    </div>`;
+  }
+
+  content += `<div style="margin-top: 10px; font-size: 11px; color: #9baec8;">
+    クリックで開く
+  </div>`;
 
   tooltip.innerHTML = content;
   document.body.appendChild(tooltip);
 
-  // popup用の位置調整（より制限的）
+  // 位置調整（contentと同じアルゴリズム）
   const rect = element.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
-
-  // popupの境界を考慮
-  const popupWidth = window.innerWidth;
-  const popupHeight = window.innerHeight;
-
-  let left = rect.left + rect.width + 8;
+  
+  let left = rect.left + rect.width + 10;
   let top = rect.top;
 
-  // 右端を超える場合は左側に表示
-  if (left + tooltipRect.width > popupWidth - 5) {
-    left = rect.left - tooltipRect.width - 8;
-
-    // それでも左端を超える場合は要素の上に表示
-    if (left < 5) {
-      left = Math.max(5, (popupWidth - tooltipRect.width) / 2);
-      top = rect.top - tooltipRect.height - 8;
-    }
+  // 画面右端を超える場合は左側に表示
+  if (left + tooltipRect.width > window.innerWidth) {
+    left = rect.left - tooltipRect.width - 10;
   }
 
-  // 下端を超える場合は上側に表示
-  if (top + tooltipRect.height > popupHeight - 5) {
-    top = rect.top - tooltipRect.height - 8;
+  // 画面下端を超える場合は位置を調整
+  if (top + tooltipRect.height > window.innerHeight) {
+    top = window.innerHeight - tooltipRect.height - 10;
   }
 
-  // 上端を下回る場合は画面内に収める
-  if (top < 5) {
-    top = 5;
+  // 画面上端を下回る場合
+  if (top < 10) {
+    top = 10;
   }
 
-  // 左端を下回る場合
-  if (left < 5) {
-    left = 5;
-  }
-
-  // 右端を超える場合（最終調整）
-  if (left + tooltipRect.width > popupWidth - 5) {
-    left = popupWidth - tooltipRect.width - 5;
+  // 最終的に左端を下回る場合
+  if (left < 10) {
+    left = 10;
   }
 
   tooltip.style.left = `${left}px`;
