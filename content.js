@@ -1784,8 +1784,8 @@ function displayPosts(posts) {
       <div class="mastodon-post-header">
         <div class="mastodon-post-user-info">
           ${postInfo.isBoost ?
-            `<strong>${postNumber}. ブースト: ${escapeHtml(postInfo.boosterUser)} (${escapeHtml(postInfo.boosterUsername)})</strong>` :
-            `<strong>${postNumber}. ${escapeHtml(postInfo.displayUser)} (${escapeHtml(postInfo.displayUsername)})</strong>`
+            `<strong>${postNumber}.</strong>` :
+            `<strong>${postNumber}. ${escapeHtml(postInfo.displayUser)}</strong>`
           }
           <span class="mastodon-post-time-inline" style="white-space: pre-line;">${timeDisplay}</span>
         </div>
@@ -2919,15 +2919,6 @@ function saveHistoryAsTxt(historyId) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-    content += `ID: ${post.id}\n`;
-
-    if (postInfo.isBoost) {
-      content += `ブースト者: ${postInfo.boosterUser} (${postInfo.boosterUsername})\n`;
-      content += `ブースト日時: ${new Date(postInfo.boostTime).toLocaleString('ja-JP')}\n`;
-      content += `元投稿者: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
-      content += `元投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
   URL.revokeObjectURL(url);
 }
 
