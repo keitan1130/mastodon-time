@@ -973,16 +973,186 @@ function getStorageAsync(keys) {
   });
 }
 
+// 大容量データ保存のための分割ストレージ機能
+async function saveLargeData(key, data) {
+  const jsonData = JSON.stringify(data);
+  const dataSize = new Blob([jsonData]).size;
+  
+  console.log(`Saving data: ${key}, Size: ${(dataSize / 1024 / 1024).toFixed(2)}MB`);
+  
+  // 5MB以下なら通常保存
+  if (dataSize < 5 * 1024 * 1024) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ [key]: data }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('Storage error:', chrome.runtime.lastError);
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+  
+  // 大容量の場合は分割保存
+  const chunkSize = 3 * 1024 * 1024; // 3MB per chunk
+  const chunks = [];
+  
+  for (let i = 0; i < jsonData.length; i += chunkSize) {
+    chunks.push(jsonData.slice(i, i + chunkSize));
+  }
+  
+  const metadata = {
+    isChunked: true,
+    totalChunks: chunks.length,
+    originalSize: dataSize,
+    timestamp: Date.now()
+  };
+  
+  try {
+    // メタデータを保存
+    await new Promise((resolve, reject) => {
+      chrome.storage.local.set({ [`${key}_meta`]: metadata }, () => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+    
+    // チャンクを順次保存
+    for (let i = 0; i < chunks.length; i++) {
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [`${key}_chunk_${i}`]: chunks[i] }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+    
+    console.log(`Successfully saved ${chunks.length} chunks for ${key}`);
+  } catch (error) {
+    console.error('Failed to save large data:', error);
+    throw error;
+  }
+}
+
+// 大容量データ読み込み機能
+async function loadLargeData(key) {
+  try {
+    // まず通常データを試す
+    const normalData = await new Promise((resolve) => {
+      chrome.storage.local.get([key], resolve);
+    });
+    
+    if (normalData[key] !== undefined) {
+      return normalData[key];
+    }
+    
+    // メタデータを確認
+    const metaData = await new Promise((resolve) => {
+      chrome.storage.local.get([`${key}_meta`], resolve);
+    });
+    
+    const metadata = metaData[`${key}_meta`];
+    if (!metadata || !metadata.isChunked) {
+      return null;
+    }
+    
+    console.log(`Loading chunked data: ${key}, ${metadata.totalChunks} chunks`);
+    
+    // チャンクを読み込み
+    const chunkKeys = [];
+    for (let i = 0; i < metadata.totalChunks; i++) {
+      chunkKeys.push(`${key}_chunk_${i}`);
+    }
+    
+    const chunksData = await new Promise((resolve) => {
+      chrome.storage.local.get(chunkKeys, resolve);
+    });
+    
+    // チャンクを結合
+    let reconstructedData = '';
+    for (let i = 0; i < metadata.totalChunks; i++) {
+      const chunkKey = `${key}_chunk_${i}`;
+      if (chunksData[chunkKey] === undefined) {
+        throw new Error(`Missing chunk: ${chunkKey}`);
+      }
+      reconstructedData += chunksData[chunkKey];
+    }
+    
+    console.log(`Successfully loaded chunked data: ${key}`);
+    return JSON.parse(reconstructedData);
+    
+  } catch (error) {
+    console.error('Failed to load large data:', error);
+    return null;
+  }
+}
+
+// 大容量データ削除機能
+async function removeLargeData(key) {
+  try {
+    // メタデータを確認
+    const metaData = await new Promise((resolve) => {
+      chrome.storage.local.get([`${key}_meta`], resolve);
+    });
+    
+    const metadata = metaData[`${key}_meta`];
+    
+    if (metadata && metadata.isChunked) {
+      // チャンクを削除
+      const keysToRemove = [`${key}_meta`];
+      for (let i = 0; i < metadata.totalChunks; i++) {
+        keysToRemove.push(`${key}_chunk_${i}`);
+      }
+      
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.remove(keysToRemove, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+      
+      console.log(`Removed chunked data: ${key}`);
+    } else {
+      // 通常データを削除
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.remove([key], () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Failed to remove large data:', error);
+    throw error;
+  }
+}
+
 async function fetchPublicTimelineInRange(sinceId, maxId) {
   let all = [];
   let max = maxId;
   let requestCount = 0;
-  const maxRequests = 275;
+  const maxRequests = 500; // 制限を緩和（大容量ストレージ対応のため）
 
   const keys = ["session_id", "mastodon_session", "x_csrf_token", "authorization"];
   const stored = await getStorageAsync(keys);
   const instanceUrl = getActiveInstanceUrl();
   const isCurrentInstance = instanceUrl === window.location.origin;
+
+  // メモリ使用量監視
+  let memoryCheckInterval = 0;
 
   while (requestCount < maxRequests) {
     const url = new URL(`${instanceUrl}/api/v1/timelines/public`);
@@ -990,6 +1160,18 @@ async function fetchPublicTimelineInRange(sinceId, maxId) {
     url.searchParams.set('max_id', max);
     url.searchParams.set('since_id', sinceId);
     url.searchParams.set('local', 'true');
+
+    // 定期的にメモリ使用量をチェック
+    if (memoryCheckInterval++ % 50 === 0 && window.performance && window.performance.memory) {
+      const memoryInfo = window.performance.memory;
+      const usedMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
+      console.log(`メモリ使用量: ${usedMB.toFixed(2)}MB, 取得済み投稿: ${all.length}件`);
+      
+      // メモリ使用量が300MBを超えた場合は警告
+      if (usedMB > 300) {
+        console.warn('メモリ使用量が多くなっています。処理を続行しますが、ブラウザが重くなる可能性があります。');
+      }
+    }
 
     let res;
     try {
@@ -2559,14 +2741,40 @@ async function saveSearchHistory(type, inputs, posts, targetInstanceInfo = null)
     history.splice(10);
   }
 
-  // ローカルストレージに保存
-  localStorage.setItem('mastodon-content-search-history', JSON.stringify(history));
+  // 大容量対応でローカルストレージに保存
+  try {
+    await saveLargeData('mastodon-content-search-history', history);
+    console.log(`履歴保存完了: ${posts.length}件の投稿データを含む`);
+  } catch (error) {
+    console.error('履歴保存に失敗:', error);
+    // フォールバック: 投稿データなしで保存を試行
+    const lightHistoryItem = {
+      ...historyItem,
+      posts: [] // 投稿データを除外
+    };
+    const lightHistory = [...history];
+    lightHistory[0] = lightHistoryItem; // 最初のアイテムを軽量版に置換
+    
+    try {
+      localStorage.setItem('mastodon-content-search-history', JSON.stringify(lightHistory));
+      console.log('軽量版履歴として保存完了');
+    } catch (fallbackError) {
+      console.error('軽量版履歴保存も失敗:', fallbackError);
+    }
+  }
 
   // 履歴ボタンを更新 - 履歴表示時に自動更新されるため不要
-}function getSearchHistory() {
+}async function getSearchHistory() {
   try {
-    const history = localStorage.getItem('mastodon-content-search-history');
-    return history ? JSON.parse(history) : [];
+    // 大容量対応での読み込みを試行
+    const history = await loadLargeData('mastodon-content-search-history');
+    if (history !== null) {
+      return history;
+    }
+    
+    // フォールバック: 従来のlocalStorageから読み込み
+    const fallbackHistory = localStorage.getItem('mastodon-content-search-history');
+    return fallbackHistory ? JSON.parse(fallbackHistory) : [];
   } catch (e) {
     console.error('履歴の読み込みに失敗:', e);
     return [];

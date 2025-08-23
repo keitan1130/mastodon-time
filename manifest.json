@@ -10,7 +10,8 @@
   "permissions": [
     "webRequest",
     "cookies",
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "https://*/*"
