@@ -3391,6 +3391,173 @@ function formatDateTime(date) {
   return `${Y}-${M}-${D} ${H}:${Min}:${S}`;
 }
 
+// 大容量データ保存のための分割ストレージ機能（popup版）
+async function saveLargeDataPopup(key, data) {
+  const jsonData = JSON.stringify(data);
+  const dataSize = new Blob([jsonData]).size;
+
+  console.log(`Saving popup data: ${key}, Size: ${(dataSize / 1024 / 1024).toFixed(2)}MB`);
+
+  // 5MB以下なら通常保存
+  if (dataSize < 5 * 1024 * 1024) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ [key]: data }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('Storage error:', chrome.runtime.lastError);
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  // 大容量の場合は分割保存
+  const chunkSize = 3 * 1024 * 1024; // 3MB per chunk
+  const chunks = [];
+
+  for (let i = 0; i < jsonData.length; i += chunkSize) {
+    chunks.push(jsonData.slice(i, i + chunkSize));
+  }
+
+  const metadata = {
+    isChunked: true,
+    totalChunks: chunks.length,
+    originalSize: dataSize,
+    timestamp: Date.now()
+  };
+
+  try {
+    // メタデータを保存
+    await new Promise((resolve, reject) => {
+      chrome.storage.local.set({ [`${key}_meta`]: metadata }, () => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // チャンクを順次保存
+    for (let i = 0; i < chunks.length; i++) {
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [`${key}_chunk_${i}`]: chunks[i] }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+
+    console.log(`Successfully saved ${chunks.length} chunks for ${key}`);
+  } catch (error) {
+    console.error('Failed to save large popup data:', error);
+    throw error;
+  }
+}
+
+// 大容量データ読み込み機能（popup版）
+async function loadLargeDataPopup(key) {
+  try {
+    // まず通常データを試す
+    const normalData = await new Promise((resolve) => {
+      chrome.storage.local.get([key], resolve);
+    });
+
+    if (normalData[key] !== undefined) {
+      return normalData[key];
+    }
+
+    // メタデータを確認
+    const metaData = await new Promise((resolve) => {
+      chrome.storage.local.get([`${key}_meta`], resolve);
+    });
+
+    const metadata = metaData[`${key}_meta`];
+    if (!metadata || !metadata.isChunked) {
+      return null;
+    }
+
+    console.log(`Loading chunked popup data: ${key}, ${metadata.totalChunks} chunks`);
+
+    // チャンクを読み込み
+    const chunkKeys = [];
+    for (let i = 0; i < metadata.totalChunks; i++) {
+      chunkKeys.push(`${key}_chunk_${i}`);
+    }
+
+    const chunksData = await new Promise((resolve) => {
+      chrome.storage.local.get(chunkKeys, resolve);
+    });
+
+    // チャンクを結合
+    let reconstructedData = '';
+    for (let i = 0; i < metadata.totalChunks; i++) {
+      const chunkKey = `${key}_chunk_${i}`;
+      if (chunksData[chunkKey] === undefined) {
+        throw new Error(`Missing chunk: ${chunkKey}`);
+      }
+      reconstructedData += chunksData[chunkKey];
+    }
+
+    console.log(`Successfully loaded chunked popup data: ${key}`);
+    return JSON.parse(reconstructedData);
+
+  } catch (error) {
+    console.error('Failed to load large popup data:', error);
+    return null;
+  }
+}
+
+// 大容量データ削除機能（popup版）
+async function removeLargeDataPopup(key) {
+  try {
+    // メタデータを確認
+    const metaData = await new Promise((resolve) => {
+      chrome.storage.local.get([`${key}_meta`], resolve);
+    });
+
+    const metadata = metaData[`${key}_meta`];
+
+    if (metadata && metadata.isChunked) {
+      // チャンクを削除
+      const keysToRemove = [`${key}_meta`];
+      for (let i = 0; i < metadata.totalChunks; i++) {
+        keysToRemove.push(`${key}_chunk_${i}`);
+      }
+
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.remove(keysToRemove, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      console.log(`Removed chunked popup data: ${key}`);
+    } else {
+      // 通常データを削除
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.remove([key], () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Failed to remove large popup data:', error);
+    throw error;
+  }
+}
+
 // 履歴管理機能
 // updatePopupHistoryButton関数は不要（履歴タイトルに直接表示するため）
 async function savePopupSearchHistory(type, inputs, posts, targetInstanceInfo = null) {
@@ -3406,7 +3573,7 @@ async function savePopupSearchHistory(type, inputs, posts, targetInstanceInfo = 
     return;
   }
 
-  const history = getPopupSearchHistory();
+  const history = await getPopupSearchHistory();
 
   // インスタンス情報を取得（targetInstanceInfoが優先、次に設定されたインスタンス情報）
   let instanceInfo = targetInstanceInfo;
@@ -3445,28 +3612,54 @@ async function savePopupSearchHistory(type, inputs, posts, targetInstanceInfo = 
     history.splice(10);
   }
 
-  // ローカルストレージに保存
-  localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
+  // 大容量対応でポップアップ履歴を保存
+  try {
+    await saveLargeDataPopup('mastodon-popup-search-history', history);
+    console.log(`ポップアップ履歴保存完了: ${posts.length}件の投稿データを含む`);
+  } catch (error) {
+    console.error('ポップアップ履歴保存に失敗:', error);
+    // フォールバック: 投稿データなしで保存を試行
+    const lightHistoryItem = {
+      ...historyItem,
+      posts: [] // 投稿データを除外
+    };
+    const lightHistory = [...history];
+    lightHistory[0] = lightHistoryItem; // 最初のアイテムを軽量版に置換
+
+    try {
+      localStorage.setItem('mastodon-popup-search-history', JSON.stringify(lightHistory));
+      console.log('軽量版ポップアップ履歴として保存完了');
+    } catch (fallbackError) {
+      console.error('軽量版ポップアップ履歴保存も失敗:', fallbackError);
+    }
+  }
 
   // 履歴ボタンを更新 - 履歴表示時に自動更新されるため不要
 }
 
-function getPopupSearchHistory() {
+async function getPopupSearchHistory() {
   try {
-    const history = localStorage.getItem('mastodon-popup-search-history');
-    return history ? JSON.parse(history) : [];
+    // 大容量対応でのポップアップ履歴読み込みを試行
+    const history = await loadLargeDataPopup('mastodon-popup-search-history');
+    if (history !== null) {
+      return history;
+    }
+
+    // フォールバック: 従来のlocalStorageから読み込み
+    const fallbackHistory = localStorage.getItem('mastodon-popup-search-history');
+    return fallbackHistory ? JSON.parse(fallbackHistory) : [];
   } catch (e) {
-    console.error('履歴の読み込みに失敗:', e);
+    console.error('ポップアップ履歴の読み込みに失敗:', e);
     return [];
   }
 }
 
 // インスタンス設定履歴保存関数
-function showPopupHistory() {
+async function showPopupHistory() {
   const modal = document.getElementById('history-modal');
   const historyList = document.getElementById('history-list');
 
-  const history = getPopupSearchHistory();
+  const history = await getPopupSearchHistory();
 
   if (history.length === 0) {
     historyList.innerHTML = '<div class="no-history">履歴がありません</div>';
@@ -3587,49 +3780,49 @@ function hidePopupHistory() {
   modal.style.display = 'none';
 }
 
-function clearPopupHistory() {
+async function clearPopupHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
-    localStorage.removeItem('mastodon-popup-search-history');
-    showPopupHistory(); // 履歴表示を更新（数も自動更新される）
+    await removeLargeDataPopup('mastodon-popup-search-history');
+    await showPopupHistory(); // 履歴表示を更新（数も自動更新される）
   }
 }
 
 function setupPopupHistoryItemListeners() {
   // 復元ボタン
   document.querySelectorAll('.history-restore-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      restorePopupSearchFromHistory(historyId);
+      await restorePopupSearchFromHistory(historyId);
     });
   });
 
   // 表示ボタン
   document.querySelectorAll('.history-view-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      viewPopupHistoryResults(historyId);
+      await viewPopupHistoryResults(historyId);
     });
   });
 
   // 保存(.txt)ボタン
   document.querySelectorAll('.history-save-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      savePopupHistoryAsTxt(historyId);
+      await savePopupHistoryAsTxt(historyId);
     });
   });
 
   // 削除ボタン
   document.querySelectorAll('.history-delete-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      deletePopupHistoryItem(historyId);
+      await deletePopupHistoryItem(historyId);
     });
   });
 }
 
-function restorePopupSearchFromHistory(historyId) {
-  const history = getPopupSearchHistory();
+async function restorePopupSearchFromHistory(historyId) {
+  const history = await getPopupSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item) return;
@@ -3722,8 +3915,8 @@ function restorePopupSearchFromHistory(historyId) {
   hidePopupHistory();
 }
 
-function viewPopupHistoryResults(historyId) {
-  const history = getPopupSearchHistory();
+async function viewPopupHistoryResults(historyId) {
+  const history = await getPopupSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item || !item.posts) return;
@@ -3735,17 +3928,18 @@ function viewPopupHistoryResults(historyId) {
   hidePopupHistory();
 }
 
-function deletePopupHistoryItem(historyId) {
+async function deletePopupHistoryItem(historyId) {
   if (confirm('この履歴を削除しますか？')) {
-    let history = getPopupSearchHistory();
+    let history = await getPopupSearchHistory();
     history = history.filter(h => h.id !== historyId);
-    localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
-    showPopupHistory(); // 履歴表示を更新（数も自動更新される）
+    // 大容量データに対応した保存方式を使用
+    await saveLargeDataPopup('mastodon-popup-search-history', history, true);
+    await showPopupHistory(); // 履歴表示を更新（数も自動更新される）
   }
 }
 
-function savePopupHistoryAsTxt(historyId) {
-  const history = getPopupSearchHistory();
+async function savePopupHistoryAsTxt(historyId) {
+  const history = await getPopupSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item || !item.posts) {
@@ -3819,7 +4013,7 @@ function savePopupHistoryAsTxt(historyId) {
 }
 
 // 履歴表示と検索フォーム表示を切り替える関数（popup版）
-function togglePopupHistoryView() {
+async function togglePopupHistoryView() {
   const historyBtn = document.getElementById('historyBtn');
   const mainContent = document.getElementById('main-content');
   const isShowingHistory = historyBtn.textContent === '戻る';
@@ -3830,15 +4024,15 @@ function togglePopupHistoryView() {
     historyBtn.textContent = '履歴';
   } else {
     // 検索フォーム表示中 → 履歴表示
-    showPopupHistoryInline();
+    await showPopupHistoryInline();
     historyBtn.textContent = '戻る';
   }
 }
 
 // インライン履歴表示関数（popup版）
-function showPopupHistoryInline() {
+async function showPopupHistoryInline() {
   const mainContent = document.getElementById('main-content');
-  const history = getPopupSearchHistory();
+  const history = await getPopupSearchHistory();
 
   let historyHtml = '';
 
@@ -4050,17 +4244,17 @@ function showPopupSearchForm() {
 function setupPopupInlineHistoryListeners() {
   // 復元ボタン
   document.querySelectorAll('.mastodon-history-inline-restore-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      restorePopupSearchFromInlineHistory(historyId);
+      await restorePopupSearchFromInlineHistory(historyId);
     });
   });
 
   // 表示ボタン
   document.querySelectorAll('.mastodon-history-inline-view-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      viewPopupHistoryResultsInline(historyId);
+      await viewPopupHistoryResultsInline(historyId);
     });
   });
 
@@ -4074,16 +4268,18 @@ function setupPopupInlineHistoryListeners() {
 
   // 削除ボタン
   document.querySelectorAll('.mastodon-history-inline-delete-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      deletePopupInlineHistoryItem(historyId);
+      await deletePopupInlineHistoryItem(historyId);
     });
   });
 
   // すべてクリアボタン
   const clearBtn = document.getElementById('mastodon-history-inline-clear');
   if (clearBtn) {
-    clearBtn.addEventListener('click', clearPopupInlineHistory);
+    clearBtn.addEventListener('click', async () => {
+      await clearPopupInlineHistory();
+    });
   }
 }
 
@@ -4258,8 +4454,8 @@ function restoreInstanceSettings() {
 }
 
 // インライン履歴から復元（popup版）
-function restorePopupSearchFromInlineHistory(historyId) {
-  const history = getPopupSearchHistory();
+async function restorePopupSearchFromInlineHistory(historyId) {
+  const history = await getPopupSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item) return;
@@ -4364,8 +4560,8 @@ function restorePopupSearchFromInlineHistory(historyId) {
 }
 
 // インライン履歴結果表示（popup版）
-function viewPopupHistoryResultsInline(historyId) {
-  const history = getPopupSearchHistory();
+async function viewPopupHistoryResultsInline(historyId) {
+  const history = await getPopupSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item || !item.posts) return;
@@ -4382,20 +4578,21 @@ function viewPopupHistoryResultsInline(historyId) {
 }
 
 // インライン履歴削除（popup版）
-function deletePopupInlineHistoryItem(historyId) {
+async function deletePopupInlineHistoryItem(historyId) {
   if (confirm('この履歴を削除しますか？')) {
-    let history = getPopupSearchHistory();
+    let history = await getPopupSearchHistory();
     history = history.filter(h => h.id !== historyId);
-    localStorage.setItem('mastodon-popup-search-history', JSON.stringify(history));
-    showPopupHistoryInline(); // 履歴表示を更新
+    // 大容量データに対応した保存方式を使用
+    await saveLargeDataPopup('mastodon-popup-search-history', history, true);
+    await showPopupHistoryInline(); // 履歴表示を更新
   }
 }
 
 // インライン履歴すべてクリア（popup版）
-function clearPopupInlineHistory() {
+async function clearPopupInlineHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
-    localStorage.removeItem('mastodon-popup-search-history');
-    showPopupHistoryInline(); // 履歴表示を更新
+    await removeLargeDataPopup('mastodon-popup-search-history');
+    await showPopupHistoryInline(); // 履歴表示を更新
   }
 }
 
