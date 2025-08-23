@@ -339,33 +339,34 @@ function displayPosts(posts) {
       }, 500); // 500ms後にプレビュー表示
     });
 
-    el.addEventListener('mouseleave', () => {
-      clearTimeout(hoverTimeout);
-      // ツールチップにホバーしていない場合のみ非表示
-      setTimeout(() => {
-        if (!isHoveringTooltip) {
-          hidePostPreview();
-        }
-      }, 100);
-    });
-
-    // ツールチップのホバー状態を管理
-    document.addEventListener('mouseover', (e) => {
-      if (e.target.closest('#mastodon-post-tooltip')) {
-        isHoveringTooltip = true;
-      }
-    });
-
-    document.addEventListener('mouseout', (e) => {
-      if (e.target.closest('#mastodon-post-tooltip') && !e.relatedTarget?.closest('#mastodon-post-tooltip')) {
-        isHoveringTooltip = false;
+      el.addEventListener('mouseleave', () => {
+        clearTimeout(hoverTimeout);
+        // ツールチップにホバーしていない場合のみ非表示
         setTimeout(() => {
-          if (!isHoveringTooltip) {
+          if (!window.mastodonTooltipHovering) {
             hidePostPreview();
           }
         }, 100);
-      }
-    });
+      });    // ツールチップのホバー状態を管理（重複防止）
+    if (!window.mastodonTooltipListenersAdded) {
+      document.addEventListener('mouseover', (e) => {
+        if (e.target.closest('#mastodon-post-tooltip')) {
+          window.mastodonTooltipHovering = true;
+        }
+      });
+
+      document.addEventListener('mouseout', (e) => {
+        if (e.target.closest('#mastodon-post-tooltip') && !e.relatedTarget?.closest('#mastodon-post-tooltip')) {
+          window.mastodonTooltipHovering = false;
+          setTimeout(() => {
+            if (!window.mastodonTooltipHovering) {
+              hidePostPreview();
+            }
+          }, 100);
+        }
+      });
+      window.mastodonTooltipListenersAdded = true;
+    }
   });
 
   // txtダウンロードリンクのクリックイベントを追加
@@ -458,99 +459,307 @@ function showPostPreview(element, post) {
   // 既存のツールチップを削除
   hidePostPreview();
 
-  const postInfo = getPostDisplayInfo(post);
+  // デバッグ: cardの情報をコンソールに出力
+  console.log('Post card info:', post.card);
 
-  // ツールチップ要素を作成
   const tooltip = document.createElement('div');
   tooltip.id = 'mastodon-post-tooltip';
-  tooltip.style.cssText = `
-    position: fixed;
-    background: #1a1e27;
-    border: 1px solid #393f4f;
-    border-radius: 8px;
-    padding: 15px;
-    max-width: 400px;
-    max-height: 500px;
-    overflow-y: auto;
-    z-index: 10000;
-    color: #fff;
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 13px;
-    line-height: 1.4;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    word-wrap: break-word;
-  `;
+  tooltip.className = 'mastodon-post-tooltip';
 
-  // コンテンツの作成
-  let content = '';
+  const postInfo = getPostDisplayInfo(post);
+
+  let displayContent = '';
+  let timeDisplay = '';
+  let userInfo = '';
 
   if (postInfo.isBoost) {
-    content += `<div style="color: #6364ff; margin-bottom: 8px; font-size: 12px;">
-      <strong>🔄 ${escapeHtml(postInfo.boosterUser)}</strong> がブーストしました
-    </div>`;
+    const boostTimeStr = new Date(postInfo.boostTime).toLocaleString('ja-JP');
+    const originalTimeStr = new Date(postInfo.displayTime).toLocaleString('ja-JP');
+
+    displayContent = postInfo.displayContent;
+    timeDisplay = `ブースト: ${boostTimeStr}<br>元投稿: ${originalTimeStr} | ID: ${post.id}`;
+    userInfo = `ブースト: <span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(postInfo.boosterUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.boosterUsername)}</span><br>元投稿: <span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${postInfo.originalPost.account.url}">${escapeHtml(postInfo.displayUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.displayUsername)}</span>`;
+  } else {
+    displayContent = postInfo.displayContent;
+    timeDisplay = `${new Date(postInfo.displayTime).toLocaleString('ja-JP')} | ID: ${post.id}`;
+    userInfo = `<span class="mastodon-tooltip-clickable-user" style="cursor: pointer; text-decoration: underline; transition: color 0.2s ease;" data-profile-url="${post.account.url}">${escapeHtml(postInfo.displayUser)}</span> <span style="cursor: default;">${escapeHtml(postInfo.displayUsername)}</span>`;
   }
 
-  content += `<div style="font-weight: bold; margin-bottom: 5px; color: #fff;">
-    ${escapeHtml(postInfo.displayUser)}
-  </div>`;
+  const followers = postInfo.isBoost ? postInfo.originalPost.account.followers_count : post.account.followers_count;
+  const following = postInfo.isBoost ? postInfo.originalPost.account.following_count : post.account.following_count;
+  const statusesCount = postInfo.isBoost ? postInfo.originalPost.account.statuses_count : post.account.statuses_count;
+  const reblogs = postInfo.isBoost ? postInfo.originalPost.reblogs_count : post.reblogs_count;
+  const favourites = postInfo.isBoost ? postInfo.originalPost.favourites_count : post.favourites_count;
+  const replies = postInfo.isBoost ? postInfo.originalPost.replies_count : post.replies_count;
+  const avatar = postInfo.isBoost ? postInfo.originalPost.account.avatar : post.account.avatar;
+  const profileUrl = postInfo.isBoost ? postInfo.originalPost.account.url : post.account.url;
 
-  content += `<div style="margin-bottom: 8px; color: #9baec8; font-size: 12px;">
-    ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}
-  </div>`;
-
-  const displayContent = postInfo.displayContent.slice(0, 300);
-  content += `<div style="margin-bottom: 10px;">
-    ${escapeHtml(displayContent)}${postInfo.displayContent.length > 300 ? '...' : ''}
-  </div>`;
-
-  // メディア情報
+  // メディア添付の情報とプレビュー
+  let mediaInfo = '';
   if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
     const mediaTypes = postInfo.mediaAttachments.map(m => m.type).join(', ');
-    content += `<div style="color: #6364ff; font-size: 12px; margin-top: 8px;">
-      📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)
-    </div>`;
+    mediaInfo = `<div class="mastodon-tooltip-media">📎 添付: ${mediaTypes} (${postInfo.mediaAttachments.length}件)</div>`;
+
+    // メディアプレビューを生成
+    const mediaPreview = postInfo.mediaAttachments.slice(0, 3).map(media => {
+      if (media.type === 'image') {
+        return `<img src="${media.preview_url || media.url}" alt="画像" class="mastodon-tooltip-image" loading="lazy">`;
+      } else if (media.type === 'video' || media.type === 'gifv') {
+        return `<video src="${media.url}" class="mastodon-tooltip-video" controls muted preload="metadata" poster="${media.preview_url}">
+                  <p>動画を再生できません</p>
+                </video>`;
+      } else if (media.type === 'audio') {
+        return `<audio src="${media.url}" class="mastodon-tooltip-audio" controls preload="metadata">
+                  <p>音声を再生できません</p>
+                </audio>`;
+      }
+      return '';
+    }).filter(Boolean).join('');
+
+    if (mediaPreview) {
+      mediaInfo += `<div class="mastodon-tooltip-media-preview">${mediaPreview}</div>`;
+    }
+
+    if (postInfo.mediaAttachments.length > 3) {
+      mediaInfo += `<div class="mastodon-tooltip-media-more">他 ${postInfo.mediaAttachments.length - 3} 件</div>`;
+    }
   }
 
-  // カード情報
-  if (postInfo.card) {
-    content += `<div style="color: #9baec8; font-size: 11px; margin-top: 5px;">
-      🔗 ${escapeHtml(postInfo.card.title || postInfo.card.url || '')}
-    </div>`;
+  // URLプレビューの情報
+  let urlPreview = '';
+  if (postInfo.card && postInfo.card.url && !postInfo.mediaAttachments?.length) {
+    const card = postInfo.card;
+
+    // URLの安全な処理
+    let domain = '';
+    try {
+      domain = new URL(card.url).hostname;
+    } catch (e) {
+      domain = card.provider_name || 'リンク先';
+    }
+
+    urlPreview = `
+      <div class="mastodon-tooltip-url-preview" data-url="${card.url}" style="cursor: pointer;">
+        <div class="mastodon-tooltip-url-title">🔗 リンクプレビュー</div>
+        <div class="mastodon-tooltip-url-card">
+          ${card.image ? `<img src="${encodeURI(card.image)}" alt="プレビュー画像" class="mastodon-tooltip-url-image" loading="lazy" onerror="this.style.display='none'">` : ''}
+          <div class="mastodon-tooltip-url-content">
+            <div class="mastodon-tooltip-url-card-title">${escapeHtml(card.title || 'タイトルなし')}</div>
+            ${card.description ? `<div class="mastodon-tooltip-url-description">${escapeHtml(card.description.substring(0, 120))}${card.description.length > 120 ? '...' : ''}</div>` : ''}
+            <div class="mastodon-tooltip-url-domain">${escapeHtml(domain)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (postInfo.card && postInfo.card.url) {
+    // メディアがあってもURLカードがある場合は簡易表示
+    urlPreview = `
+      <div class="mastodon-tooltip-url-simple" data-url="${postInfo.card.url}" style="cursor: pointer;">
+        <div class="mastodon-tooltip-url-title">🔗 ${escapeHtml(postInfo.card.title || 'リンク')}</div>
+        <div class="mastodon-tooltip-url-link-only">${escapeHtml(postInfo.card.url.length > 60 ? postInfo.card.url.substring(0, 57) + '...' : postInfo.card.url)}</div>
+      </div>
+    `;
   }
 
-  content += `<div style="margin-top: 10px; font-size: 11px; color: #9baec8;">
-    クリックで開く
-  </div>`;
+  // 投稿の詳細情報
+  let visibility = '';
+  const visibilityValue = postInfo.isBoost ? postInfo.originalPost.visibility : post.visibility;
+  switch(visibilityValue) {
+    case 'public': visibility = '🌐 公開'; break;
+    case 'unlisted': visibility = '🔓 未収載'; break;
+    case 'private': visibility = '🔒 フォロワー限定'; break;
+    case 'direct': visibility = '✉️ ダイレクト'; break;
+    default: visibility = visibilityValue;
+  }
 
-  tooltip.innerHTML = content;
+  tooltip.innerHTML = `
+    <div class="mastodon-tooltip-header">
+      <div class="mastodon-tooltip-user-info">
+        <img src="${avatar}" alt="アバター" class="mastodon-tooltip-avatar" loading="lazy">
+        <div class="mastodon-tooltip-user-text">
+          <div class="mastodon-tooltip-user">
+            <div class="mastodon-tooltip-user-names">${userInfo}</div>
+          </div>
+          <div class="mastodon-tooltip-time">${timeDisplay}</div>
+        </div>
+      </div>
+    </div>
+    <div class="mastodon-tooltip-content" style="white-space: pre-wrap;">${escapeHtml(displayContent)}</div>
+    ${mediaInfo}
+    ${urlPreview}
+    <div class="mastodon-tooltip-interactions">
+      <span class="mastodon-tooltip-visibility">${visibility}</span>
+      <span class="mastodon-tooltip-post-count">投稿数: ${statusesCount}</span>
+      <button class="mastodon-tooltip-go-post" style="cursor: pointer; background: none; border: none; color: #fff; font-size: 13px; text-decoration: underline; padding: 0; margin-left: 5px; transition: color 0.2s ease;" data-post-url="${postInfo.displayUrl}">移動</button>
+      <span class="mastodon-tooltip-counts">
+        💬 ${replies} | 🔄 ${reblogs} | ⭐ ${favourites}
+      </span>
+    </div>
+  `;
+
+  // ツールチップのスタイルを設定
+  const hasMedia = post.media_attachments && post.media_attachments.length > 0;
+  const hasUrlPreview = post.card && post.card.url && !post.media_attachments?.length;
+  const maxWidth = (hasMedia || hasUrlPreview) ? '500px' : '400px';
+
+  tooltip.style.cssText = `
+    position: fixed;
+    background: #282c37;
+    color: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    max-width: ${maxWidth};
+    font-size: 13px;
+    line-height: 1.4;
+    border: 1px solid #393f4f;
+    pointer-events: auto;
+    cursor: default;
+  `;
+
   document.body.appendChild(tooltip);
 
-  // 位置調整（contentと同じアルゴリズム）
+  // ツールチップ自体にマウスイベントを追加
+  tooltip.addEventListener('mouseenter', () => {
+    // ツールチップにマウスが入った場合、非表示をキャンセル
+  });
+
+  tooltip.addEventListener('mouseleave', () => {
+    // ツールチップからマウスが離れた場合、少し遅延して非表示
+    setTimeout(() => {
+      hidePostPreview();
+    }, 100);
+  });
+
+  // リンクプレビューのクリックイベントを追加
+  const urlPreviewElement = tooltip.querySelector('.mastodon-tooltip-url-preview');
+  if (urlPreviewElement) {
+    urlPreviewElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url = urlPreviewElement.getAttribute('data-url');
+      if (url) {
+        window.open(url, '_blank');
+      }
+    });
+  }
+
+  const urlSimpleElement = tooltip.querySelector('.mastodon-tooltip-url-simple');
+  if (urlSimpleElement) {
+    urlSimpleElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url = urlSimpleElement.getAttribute('data-url');
+      if (url) {
+        window.open(url, '_blank');
+      }
+    });
+  }
+
+  // 個別のクリック可能なユーザー名のイベントを追加
+  const clickableUsers = tooltip.querySelectorAll('.mastodon-tooltip-clickable-user');
+  clickableUsers.forEach(userElement => {
+    userElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const profileUrl = userElement.getAttribute('data-profile-url');
+      if (profileUrl) {
+        window.open(profileUrl, '_blank');
+      }
+    });
+
+    // ホバーエフェクトを追加
+    userElement.addEventListener('mouseenter', () => {
+      userElement.style.color = '#6364ff';
+    });
+
+    userElement.addEventListener('mouseleave', () => {
+      userElement.style.color = '#fff';
+    });
+  });
+
+  // 投稿移動ボタンのクリックイベントを追加
+  const goPostButton = tooltip.querySelector('.mastodon-tooltip-go-post');
+  if (goPostButton) {
+    goPostButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const postUrl = goPostButton.getAttribute('data-post-url');
+      if (postUrl) {
+        window.open(postUrl, '_blank');
+      }
+    });
+
+    // ホバーエフェクトを追加
+    goPostButton.addEventListener('mouseenter', () => {
+      goPostButton.style.color = '#6364ff';
+    });
+
+    goPostButton.addEventListener('mouseleave', () => {
+      goPostButton.style.color = '#fff';
+    });
+  }
+
+  // 位置調整（content.jsと同じアルゴリズム）
   const rect = element.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
 
   let left = rect.left + rect.width + 10;
   let top = rect.top;
 
-  // 画面右端を超える場合は左側に表示
-  if (left + tooltipRect.width > window.innerWidth) {
-    left = rect.left - tooltipRect.width - 10;
+  // 画面の右端を超える場合は、まず画面内に収まるように右端に合わせる
+  if (left + tooltipRect.width > window.innerWidth - 10) {
+    left = window.innerWidth - tooltipRect.width - 10;
+
+    // それでも要素と重なる場合のみ左側に表示
+    if (left < rect.right) {
+      left = rect.left - tooltipRect.width - 10;
+
+      // 左端を超える場合は右側優先で表示（右側にはみ出すことを許可）
+      if (left < 10) {
+        left = rect.left + rect.width + 10; // 右側に戻す
+      } else {
+        // 左側表示時の下端調整
+        if (top + tooltipRect.height > window.innerHeight - 10) {
+          // ホバーしている要素の上に配置を試行
+          top = rect.top - tooltipRect.height - 10;
+
+          // 上に表示しても画面上端を超える場合は、ホバー要素の中央に合わせて画面内に収める
+          if (top < 10) {
+            // ホバーしている要素の中央を基準に調整
+            const elementCenter = rect.top + rect.height / 2;
+            const tooltipHalfHeight = tooltipRect.height / 2;
+
+            // 要素の中央にツールチップの中央を合わせる
+            top = elementCenter - tooltipHalfHeight;
+
+            // 画面の境界内に収める
+            top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
+          }
+        }
+      }
+    }
   }
 
-  // 画面下端を超える場合は位置を調整
-  if (top + tooltipRect.height > window.innerHeight) {
-    top = window.innerHeight - tooltipRect.height - 10;
+  // 右側表示時の画面の下端を超える場合の調整
+  if (left >= rect.left + rect.width && top + tooltipRect.height > window.innerHeight - 10) {
+    // ホバーしている要素の上に配置を試行
+    top = rect.top - tooltipRect.height - 10;
+
+    // 上に表示しても画面上端を超える場合は、ホバー要素の中央に合わせて画面内に収める
+    if (top < 10) {
+      // ホバーしている要素の中央を基準に調整
+      const elementCenter = rect.top + rect.height / 2;
+      const tooltipHalfHeight = tooltipRect.height / 2;
+
+      // 要素の中央にツールチップの中央を合わせる
+      top = elementCenter - tooltipHalfHeight;
+
+      // 画面の境界内に収める
+      top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
+    }
   }
 
-  // 画面上端を下回る場合
-  if (top < 10) {
-    top = 10;
-  }
-
-  // 最終的に左端を下回る場合
-  if (left < 10) {
-    left = 10;
-  }
+  // 最終的な境界チェック
+  left = Math.max(10, Math.min(left, window.innerWidth - tooltipRect.width - 10));
+  top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
 
   tooltip.style.left = `${left}px`;
   tooltip.style.top = `${top}px`;
