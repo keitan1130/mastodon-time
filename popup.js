@@ -587,7 +587,17 @@ function generateTxtContent(posts, searchInfo = {}) {
         break;
       case 'user':
         searchType = 'ユーザー検索';
-        searchTarget = `ユーザー: ${searchInfo.inputs?.username || 'N/A'}`;
+        const username = searchInfo.inputs?.username || 'N/A';
+        searchTarget = `ユーザー: ${username}`;
+
+        // クロスインスタンス検索の場合は詳細情報を追加
+        if (username.includes('@')) {
+          const parts = username.split('@');
+          const userPart = parts[0];
+          const instancePart = parts[1];
+          searchTarget += `\n対象インスタンス: ${instancePart}`;
+        }
+
         if (searchInfo.inputs?.searchMode === 'postCount') {
           searchMethod = '投稿件数指定';
           if (searchInfo.inputs?.timeInput) {
@@ -819,15 +829,26 @@ function downloadPostsAsTxt(posts) {
   URL.revokeObjectURL(url);
 
   // ユーザーに成功メッセージを表示
-  const mainContent = document.getElementById('main-content');
-  const countDiv = mainContent.querySelector('.mastodon-count');
+  const resultDiv = document.getElementById('result');
+  const countDiv = resultDiv?.querySelector('.mastodon-count');
   if (countDiv) {
     const originalCountHTML = countDiv.innerHTML;
-    countDiv.innerHTML = originalCountHTML + ' <span style="color: #4caf50;">ダウンロード完了!</span>';
+    countDiv.innerHTML = originalCountHTML + ' <span style="color: #4caf50; font-weight: bold;">ダウンロード完了!</span>';
 
     // 3秒後に元に戻す
     setTimeout(() => {
       countDiv.innerHTML = originalCountHTML;
+    }, 3000);
+  } else {
+    // countDivが見つからない場合のフォールバック
+    const tempMessage = document.createElement('div');
+    tempMessage.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 10px 15px; border-radius: 5px; z-index: 10000; font-weight: bold;';
+    tempMessage.textContent = 'ダウンロード完了!';
+    document.body.appendChild(tempMessage);
+
+    // 3秒後に削除
+    setTimeout(() => {
+      document.body.removeChild(tempMessage);
     }, 3000);
   }
 }
@@ -3673,6 +3694,19 @@ function savePopupHistoryAsTxt(historyId) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  // ダウンロード完了メッセージを表示
+  const tempMessage = document.createElement('div');
+  tempMessage.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 10px 15px; border-radius: 5px; z-index: 10000; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);';
+  tempMessage.textContent = 'ダウンロード完了!';
+  document.body.appendChild(tempMessage);
+
+  // 3秒後に削除
+  setTimeout(() => {
+    if (document.body.contains(tempMessage)) {
+      document.body.removeChild(tempMessage);
+    }
+  }, 3000);
 }
 
 // 履歴表示と検索フォーム表示を切り替える関数（popup版）

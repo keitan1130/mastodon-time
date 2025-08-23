@@ -2249,7 +2249,17 @@ function generateTxtContent(posts, searchInfo = {}) {
         break;
       case 'user':
         searchType = 'ユーザー検索';
-        searchTarget = `ユーザー: ${searchInfo.inputs?.username || 'N/A'}`;
+        const username = searchInfo.inputs?.username || 'N/A';
+        searchTarget = `ユーザー: ${username}`;
+
+        // クロスインスタンス検索の場合は詳細情報を追加
+        if (username.includes('@')) {
+          const parts = username.split('@');
+          const userPart = parts[0];
+          const instancePart = parts[1];
+          searchTarget += `\n対象インスタンス: ${instancePart}`;
+        }
+
         if (searchInfo.inputs?.searchMode === 'postCount') {
           searchMethod = '投稿件数指定';
           if (searchInfo.inputs?.timeInput) {
@@ -2437,6 +2447,25 @@ function downloadPostsAsTxt(posts) {
         searchInfo.inputs.timeRange = document.getElementById('mastodonTimeRange').value.trim();
       }
       break;
+  }
+
+  // インスタンス情報を追加
+  const instanceNameSpan = document.getElementById('instanceName');
+  if (instanceNameSpan) {
+    // content scriptでは現在のページのURLから取得
+    const currentInstanceUrl = getCurrentInstanceUrl();
+    searchInfo.instance = {
+      name: instanceNameSpan.textContent,
+      url: currentInstanceUrl
+    };
+  } else {
+    // フォールバックとして現在のページのインスタンス情報を使用
+    const currentInstanceUrl = getCurrentInstanceUrl();
+    const hostname = new URL(currentInstanceUrl).hostname;
+    searchInfo.instance = {
+      name: hostname,
+      url: currentInstanceUrl
+    };
   }
 
   const txtContent = generateTxtContent(posts, searchInfo);
@@ -2920,6 +2949,19 @@ function saveHistoryAsTxt(historyId) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  // ダウンロード完了メッセージを表示
+  const tempMessage = document.createElement('div');
+  tempMessage.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 10px 15px; border-radius: 5px; z-index: 10000; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);';
+  tempMessage.textContent = 'ダウンロード完了!';
+  document.body.appendChild(tempMessage);
+
+  // 3秒後に削除
+  setTimeout(() => {
+    if (document.body.contains(tempMessage)) {
+      document.body.removeChild(tempMessage);
+    }
+  }, 3000);
 }
 
 // 履歴表示と検索フォーム表示を切り替える関数
