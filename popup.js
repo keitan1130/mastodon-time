@@ -569,7 +569,7 @@ function generateTxtContent(posts, searchInfo = {}) {
 
   const now = new Date();
   const generatedTime = now.toLocaleString('ja-JP');
-  const environment = 'Popup';
+  const environment = 'Content Script';
 
   // 検索条件の詳細情報を構築
   let searchDetails = '';
@@ -723,12 +723,12 @@ function downloadPostsAsTxt(posts) {
   switch(type) {
     case 'id':
       typeLabel = 'id';
-      const postId = document.getElementById('postId').value.trim();
+      const postId = document.getElementById('postIdOrTime').value.trim();
       searchIdentifier = postId || 'unknown';
       break;
     case 'user':
       typeLabel = 'user';
-      const username = document.getElementById('username').value.trim();
+      const username = document.getElementById('usernameField').value.trim();
       // @を除去してクリーンなユーザー名にする
       searchIdentifier = username.replace(/^@/, '').replace(/@.*$/, '') || 'unknown';
       break;
@@ -748,11 +748,11 @@ function downloadPostsAsTxt(posts) {
   // 入力情報を収集
   switch(type) {
     case 'id':
-      searchInfo.inputs.postId = document.getElementById('postId').value.trim();
+      searchInfo.inputs.postId = document.getElementById('postIdOrTime').value.trim();
       break;
     case 'user':
-      searchInfo.inputs.username = document.getElementById('username').value.trim();
-      searchInfo.inputs.timeInput = document.getElementById('timeInput').value.trim();
+      searchInfo.inputs.username = document.getElementById('usernameField').value.trim();
+      searchInfo.inputs.timeInput = document.getElementById('timeField').value.trim();
       const userSearchMode = document.querySelector('input[name="searchMode"]:checked').value;
       searchInfo.inputs.searchMode = userSearchMode;
       if (userSearchMode === 'postCount') {
@@ -763,7 +763,7 @@ function downloadPostsAsTxt(posts) {
       }
       break;
     case 'time':
-      searchInfo.inputs.timeInput = document.getElementById('timeInput').value.trim();
+      searchInfo.inputs.timeInput = document.getElementById('postIdOrTime').value.trim();
       const timeSearchMode = document.querySelector('input[name="searchMode"]:checked').value;
       searchInfo.inputs.searchMode = timeSearchMode;
       if (timeSearchMode === 'postCount') {
@@ -773,6 +773,21 @@ function downloadPostsAsTxt(posts) {
         searchInfo.inputs.timeRange = document.getElementById('timeRange').value.trim();
       }
       break;
+  }
+
+  // インスタンス情報を追加
+  const instanceNameSpan = document.getElementById('instanceName');
+  if (instanceNameSpan) {
+    // popupではlocalStorageからインスタンスURLを取得
+    let instanceUrl = document.getElementById('instanceUrl')?.value;
+    if (!instanceUrl) {
+      // フォールバックとしてlocalStorageから取得を試行
+      instanceUrl = localStorage.getItem('mastodon-instanceUrl') || 'https://mastodon.social';
+    }
+    searchInfo.instance = {
+      name: instanceNameSpan.textContent,
+      url: instanceUrl
+    };
   }
 
   const txtContent = generateTxtContent(posts, searchInfo);
@@ -2441,8 +2456,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 常に取得件数を表示（txtダウンロードリンク付き）
     const countText = `<div class="mastodon-count">取得件数: ${posts.length}件 <a href="#" id="mastodonTxtDownloadLink" style="margin-left: 10px; color: #6364ff; text-decoration: underline; font-size: 13px;">txtダウンロード</a></div>`;
 
-    resultDiv.innerHTML = countText + posts.map(post => {
+    resultDiv.innerHTML = countText + posts.map((post, index) => {
       const postInfo = getPostDisplayInfo(post);
+      const postNumber = index + 1; // 1から始まる連番
 
       let displayText = '';
       let timeDisplay = '';
@@ -2468,7 +2484,10 @@ document.addEventListener('DOMContentLoaded', function() {
       return `<div class="mastodon-post-item" data-url="${postInfo.displayUrl}" data-post-data='${JSON.stringify(post).replace(/'/g, "&apos;")}'>
         <div class="mastodon-post-header">
           <div class="mastodon-post-user-info">
-            ${postInfo.isBoost ? '' : `<strong>${escapeHtml(postInfo.displayUser)}</strong>`}
+            ${postInfo.isBoost ?
+              `<strong>${postNumber}.</strong>` :
+              `<strong>${postNumber}. ${escapeHtml(postInfo.displayUser)}</strong>`
+            }
             <span class="mastodon-post-time-inline" style="white-space: pre-line;">${timeDisplay}</span>
           </div>
         </div>
@@ -2900,54 +2919,60 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // テキスト内容を生成
-    let txtContent = `Mastodon投稿データ\n`;
-    txtContent += `エクスポート日時: ${new Date().toLocaleString('ja-JP')}\n`;
-    txtContent += `投稿数: ${posts.length}件\n`;
-    txtContent += `\n${'='.repeat(50)}\n\n`;
+    // 現在の検索情報を取得
+    const type = document.querySelector('input[name="inputType"]:checked')?.value;
+    let searchInfo = {};
 
-    posts.forEach((post, index) => {
-      const postInfo = getPostDisplayInfo(post);
+    if (type) {
+      searchInfo.type = type;
+      searchInfo.inputs = {};
 
-      txtContent += `【投稿 ${index + 1}】\n`;
-      txtContent += `投稿ID: ${post.id}\n`;
-
-      if (postInfo.isBoost) {
-        // ブースト投稿の場合
-        txtContent += `ブーストユーザー: ${postInfo.boosterUser} (${postInfo.boosterUsername})\n`;
-        txtContent += `ブースト日時: ${new Date(postInfo.boostTime).toLocaleString('ja-JP')}\n`;
-        txtContent += `元投稿ユーザー: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
-        txtContent += `元投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
-      } else {
-        // 通常投稿の場合
-        txtContent += `ユーザー: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
-        txtContent += `投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
+      switch(type) {
+        case 'id':
+          searchInfo.inputs.postId = document.getElementById('postId')?.value;
+          break;
+        case 'user':
+          searchInfo.inputs.username = document.getElementById('username')?.value;
+          searchInfo.inputs.searchMode = document.querySelector('input[name="userSearchMode"]:checked')?.value;
+          searchInfo.inputs.timeInput = document.getElementById('userTimeInput')?.value;
+          if (searchInfo.inputs.searchMode === 'postCount') {
+            searchInfo.inputs.postCount = document.getElementById('userPostCount')?.value;
+          } else if (searchInfo.inputs.searchMode === 'timeRange') {
+            searchInfo.inputs.timeRange = document.getElementById('userTimeRange')?.value;
+          }
+          break;
+        case 'time':
+          searchInfo.inputs.searchMode = document.querySelector('input[name="timeSearchMode"]:checked')?.value;
+          searchInfo.inputs.timeInput = document.getElementById('timeInput')?.value;
+          if (searchInfo.inputs.searchMode === 'postCount') {
+            searchInfo.inputs.postCount = document.getElementById('postCount')?.value;
+            searchInfo.inputs.searchTime = document.getElementById('searchTime')?.value;
+          } else if (searchInfo.inputs.searchMode === 'timeRange') {
+            searchInfo.inputs.timeRange = document.getElementById('timeRange')?.value;
+          }
+          break;
       }
 
-      txtContent += `URL: ${postInfo.displayUrl}\n`;
-      txtContent += `内容:\n${postInfo.displayContent}\n`;
-
-      // メディア添付情報
-      if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
-        txtContent += `添付メディア: ${postInfo.mediaAttachments.length}件\n`;
-        postInfo.mediaAttachments.forEach((media, mediaIndex) => {
-          txtContent += `  ${mediaIndex + 1}. タイプ: ${media.type}, URL: ${media.url}\n`;
-        });
-      }
-
-      // URLカード情報
-      if (postInfo.card && postInfo.card.url) {
-        txtContent += `リンクカード: ${postInfo.card.title || 'タイトルなし'}\n`;
-        txtContent += `リンクURL: ${postInfo.card.url}\n`;
-        if (postInfo.card.description) {
-          txtContent += `説明: ${postInfo.card.description}\n`;
+      // インスタンス情報
+      const instanceNameSpan = document.getElementById('instanceName');
+      if (instanceNameSpan) {
+        // popupではlocalStorageからインスタンスURLを取得
+        let instanceUrl = document.getElementById('instanceUrl')?.value;
+        if (!instanceUrl) {
+          // フォールバックとしてlocalStorageから取得を試行
+          instanceUrl = localStorage.getItem('mastodon-instanceUrl') || 'https://mastodon.social';
         }
+        searchInfo.instance = {
+          name: instanceNameSpan.textContent,
+          url: instanceUrl
+        };
       }
+    }
 
-      txtContent += `\n${'-'.repeat(30)}\n\n`;
-    });
+    // 統一されたテンプレートを使用してテキスト内容を生成
+    const txtContent = generateTxtContent(posts, searchInfo);
 
-    // ファイル名を生成（日時を含む）
+    // ファイル名を生成（統一形式）
     const now = new Date();
     const timestamp = now.getFullYear() +
                      String(now.getMonth() + 1).padStart(2, '0') +
@@ -2955,7 +2980,30 @@ document.addEventListener('DOMContentLoaded', function() {
                      String(now.getHours()).padStart(2, '0') +
                      String(now.getMinutes()).padStart(2, '0') +
                      String(now.getSeconds()).padStart(2, '0');
-    const filename = `mastodon_posts_${timestamp}.txt`;
+
+    let typeLabel = '';
+    let searchIdentifier = '';
+
+    switch(type) {
+      case 'id':
+        typeLabel = 'id';
+        searchIdentifier = document.getElementById('postId')?.value || 'unknown';
+        break;
+      case 'user':
+        typeLabel = 'user';
+        const username = document.getElementById('username')?.value || 'unknown';
+        searchIdentifier = username.replace(/^@/, '').replace(/@.*$/, '');
+        break;
+      case 'time':
+        typeLabel = 'public';
+        searchIdentifier = 'timeline';
+        break;
+      default:
+        typeLabel = 'posts';
+        searchIdentifier = 'data';
+    }
+
+    const filename = `mastodon_${typeLabel}_${searchIdentifier}_${timestamp}.txt`;
 
     // ダウンロードを実行
     const blob = new Blob([txtContent], { type: 'text/plain; charset=utf-8' });
@@ -3575,72 +3623,48 @@ function savePopupHistoryAsTxt(historyId) {
     return;
   }
 
-  // ファイル名を生成（履歴の日時を使用）
-  const timestamp = new Date(item.timestamp);
-  const year = timestamp.getFullYear();
-  const month = String(timestamp.getMonth() + 1).padStart(2, '0');
-  const day = String(timestamp.getDate()).padStart(2, '0');
-  const hour = String(timestamp.getHours()).padStart(2, '0');
-  const minute = String(timestamp.getMinutes()).padStart(2, '0');
-  const second = String(timestamp.getSeconds()).padStart(2, '0');
+  // 検索情報を構築
+  const searchInfo = {
+    type: item.type,
+    inputs: item.inputs,
+    instance: item.instance
+  };
 
-  // 検索タイプと内容を含むファイル名
+  const txtContent = generateTxtContent(item.posts, searchInfo);
+
+  // ファイル名を生成（統一形式）
+  const now = new Date(); // 現在時刻を使用
+  const timestamp = now.getFullYear() +
+                   String(now.getMonth() + 1).padStart(2, '0') +
+                   String(now.getDate()).padStart(2, '0') + '_' +
+                   String(now.getHours()).padStart(2, '0') +
+                   String(now.getMinutes()).padStart(2, '0') +
+                   String(now.getSeconds()).padStart(2, '0');
+
   let typeLabel = '';
-  let inputSummary = '';
+  let searchIdentifier = '';
 
   switch(item.type) {
     case 'id':
-      typeLabel = 'ID';
-      inputSummary = item.inputs.postId;
+      typeLabel = 'id';
+      searchIdentifier = item.inputs.postId || 'unknown';
       break;
     case 'user':
-      typeLabel = 'ユーザー';
-      inputSummary = item.inputs.username;
+      typeLabel = 'user';
+      const username = item.inputs.username || 'unknown';
+      // @を除去してクリーンなユーザー名にする
+      searchIdentifier = username.replace(/^@/, '').replace(/@.*$/, '');
       break;
     case 'time':
-      typeLabel = 'パブリック';
-      inputSummary = item.inputs.timeInput || '現在時刻';
+      typeLabel = 'public';
+      searchIdentifier = 'timeline';
       break;
   }
 
-  const filename = `mastodon_履歴_${typeLabel}_${year}${month}${day}_${hour}${minute}${second}.txt`;
-
-  // txtファイルのコンテンツを生成（既存のdownloadPostsAsTxt関数と同じ形式）
-  let content = `Mastodon検索結果 (履歴)\n`;
-  content += `検索タイプ: ${typeLabel}\n`;
-  content += `検索内容: ${inputSummary}\n`;
-  content += `検索日時: ${timestamp.toLocaleString('ja-JP')}\n`;
-  content += `投稿件数: ${item.posts.length}件\n`;
-  content += `===========================================\n\n`;
-
-  item.posts.forEach((post, index) => {
-    const postInfo = getPostDisplayInfo(post);
-
-    content += `--- 投稿 ${index + 1} ---\n`;
-    content += `ID: ${post.id}\n`;
-
-    if (postInfo.isBoost) {
-      content += `ブースト者: ${postInfo.boosterUser} (${postInfo.boosterUsername})\n`;
-      content += `ブースト日時: ${new Date(postInfo.boostTime).toLocaleString('ja-JP')}\n`;
-      content += `元投稿者: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
-      content += `元投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
-    } else {
-      content += `投稿者: ${postInfo.displayUser} (${postInfo.displayUsername})\n`;
-      content += `投稿日時: ${new Date(postInfo.displayTime).toLocaleString('ja-JP')}\n`;
-    }
-
-    content += `URL: ${postInfo.displayUrl}\n`;
-    content += `内容:\n${postInfo.displayContent}\n`;
-
-    if (postInfo.mediaAttachments && postInfo.mediaAttachments.length > 0) {
-      content += `添付ファイル: ${postInfo.mediaAttachments.map(m => `${m.type}(${m.url})`).join(', ')}\n`;
-    }
-
-    content += `\n`;
-  });
+  const filename = `mastodon_${typeLabel}_${searchIdentifier}_${timestamp}.txt`;
 
   // ダウンロード実行
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
