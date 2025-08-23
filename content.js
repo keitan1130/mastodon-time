@@ -2707,7 +2707,12 @@ async function saveSearchHistory(type, inputs, posts, targetInstanceInfo = null)
     return;
   }
 
-  const history = getSearchHistory();
+  let history = await getSearchHistory();
+
+  // historyが配列でない場合は空配列で初期化
+  if (!Array.isArray(history)) {
+    history = [];
+  }
 
   // インスタンス情報を取得（targetInstanceInfoが優先、次に現在のページ情報）
   let instanceInfo = targetInstanceInfo;
@@ -2781,11 +2786,11 @@ async function saveSearchHistory(type, inputs, posts, targetInstanceInfo = null)
   }
 }
 
-function showHistory() {
+async function showHistory() {
   const modal = document.getElementById('mastodon-history-modal');
   const historyList = document.getElementById('mastodon-history-list');
 
-  const history = getSearchHistory();
+  const history = await getSearchHistory();
 
   if (history.length === 0) {
     historyList.innerHTML = '<div class="mastodon-no-history">履歴がありません</div>';
@@ -2906,49 +2911,49 @@ function hideHistory() {
   modal.style.display = 'none';
 }
 
-function clearHistory() {
+async function clearHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
-    localStorage.removeItem('mastodon-content-search-history');
-    showHistory(); // 履歴表示を更新（数も自動更新される）
+    await removeLargeData('mastodon-content-search-history');
+    await showHistory(); // 履歴表示を更新（数も自動更新される）
   }
 }
 
 function setupHistoryItemListeners() {
   // 復元ボタン
   document.querySelectorAll('.mastodon-history-restore-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      restoreSearchFromHistory(historyId);
+      await restoreSearchFromHistory(historyId);
     });
   });
 
   // 表示ボタン
   document.querySelectorAll('.mastodon-history-view-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      viewHistoryResults(historyId);
+      await viewHistoryResults(historyId);
     });
   });
 
   // 保存(.txt)ボタン
   document.querySelectorAll('.mastodon-history-save-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      saveHistoryAsTxt(historyId);
+      await saveHistoryAsTxt(historyId);
     });
   });
 
   // 削除ボタン
   document.querySelectorAll('.mastodon-history-delete-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      deleteHistoryItem(historyId);
+      await deleteHistoryItem(historyId);
     });
   });
 }
 
-function restoreSearchFromHistory(historyId) {
-  const history = getSearchHistory();
+async function restoreSearchFromHistory(historyId) {
+  const history = await getSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item) return;
@@ -3068,8 +3073,8 @@ function restoreSearchFromHistory(historyId) {
   }
 }
 
-function viewHistoryResults(historyId) {
-  const history = getSearchHistory();
+async function viewHistoryResults(historyId) {
+  const history = await getSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item || !item.posts) return;
@@ -3089,17 +3094,18 @@ function viewHistoryResults(historyId) {
   }
 }
 
-function deleteHistoryItem(historyId) {
+async function deleteHistoryItem(historyId) {
   if (confirm('この履歴を削除しますか？')) {
-    let history = getSearchHistory();
+    let history = await getSearchHistory();
     history = history.filter(h => h.id !== historyId);
-    localStorage.setItem('mastodon-content-search-history', JSON.stringify(history));
-    showHistory(); // 履歴表示を更新（数も自動更新される）
+    // 大容量データに対応した保存方式を使用
+    await saveLargeData('mastodon-content-search-history', history, true);
+    await showHistory(); // 履歴表示を更新（数も自動更新される）
   }
 }
 
-function saveHistoryAsTxt(historyId) {
-  const history = getSearchHistory();
+async function saveHistoryAsTxt(historyId) {
+  const history = await getSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item || !item.posts) {
@@ -3173,7 +3179,7 @@ function saveHistoryAsTxt(historyId) {
 }
 
 // 履歴表示と検索フォーム表示を切り替える関数
-function toggleHistoryView() {
+async function toggleHistoryView() {
   const historyBtn = document.getElementById('mastodon-history-btn');
   const viewerContent = document.getElementById('mastodon-viewer-content');
   const isShowingHistory = historyBtn.textContent === '戻る';
@@ -3184,7 +3190,7 @@ function toggleHistoryView() {
     historyBtn.textContent = '履歴';
   } else {
     // 検索フォーム表示中 → 履歴表示
-    showHistoryInline();
+    await showHistoryInline();
     historyBtn.textContent = '戻る';
   }
 
@@ -3195,9 +3201,9 @@ function toggleHistoryView() {
 }
 
 // インライン履歴表示関数
-function showHistoryInline() {
+async function showHistoryInline() {
   const viewerContent = document.getElementById('mastodon-viewer-content');
-  const history = getSearchHistory();
+  const history = await getSearchHistory();
 
   let historyHtml = '';
 
@@ -3400,40 +3406,42 @@ function showSearchForm() {
 function setupInlineHistoryListeners() {
   // 復元ボタン
   document.querySelectorAll('.mastodon-history-inline-restore-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      restoreSearchFromInlineHistory(historyId);
+      await restoreSearchFromInlineHistory(historyId);
     });
   });
 
   // 表示ボタン
   document.querySelectorAll('.mastodon-history-inline-view-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      viewHistoryResultsInline(historyId);
+      await viewHistoryResultsInline(historyId);
     });
   });
 
   // 保存(.txt)ボタン
   document.querySelectorAll('.mastodon-history-inline-save-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      saveHistoryAsTxt(historyId);
+      await saveHistoryAsTxt(historyId);
     });
   });
 
   // 削除ボタン
   document.querySelectorAll('.mastodon-history-inline-delete-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const historyId = parseInt(e.target.dataset.historyId);
-      deleteInlineHistoryItem(historyId);
+      await deleteInlineHistoryItem(historyId);
     });
   });
 
   // すべてクリアボタン
   const clearBtn = document.getElementById('mastodon-history-inline-clear');
   if (clearBtn) {
-    clearBtn.addEventListener('click', clearInlineHistory);
+    clearBtn.addEventListener('click', async () => {
+      await clearInlineHistory();
+    });
   }
 }
 
@@ -3567,8 +3575,8 @@ function restoreFormSettings() {
 }
 
 // インライン履歴から復元
-function restoreSearchFromInlineHistory(historyId) {
-  const history = getSearchHistory();
+async function restoreSearchFromInlineHistory(historyId) {
+  const history = await getSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item) return;
@@ -3737,8 +3745,8 @@ function restoreSearchFromInlineHistory(historyId) {
 }
 
 // インライン履歴結果表示
-function viewHistoryResultsInline(historyId) {
-  const history = getSearchHistory();
+async function viewHistoryResultsInline(historyId) {
+  const history = await getSearchHistory();
   const item = history.find(h => h.id === historyId);
 
   if (!item || !item.posts) return;
@@ -3755,20 +3763,21 @@ function viewHistoryResultsInline(historyId) {
 }
 
 // インライン履歴削除
-function deleteInlineHistoryItem(historyId) {
+async function deleteInlineHistoryItem(historyId) {
   if (confirm('この履歴を削除しますか？')) {
-    let history = getSearchHistory();
+    let history = await getSearchHistory();
     history = history.filter(h => h.id !== historyId);
-    localStorage.setItem('mastodon-content-search-history', JSON.stringify(history));
-    showHistoryInline(); // 履歴表示を更新
+    // 大容量データに対応した保存方式を使用
+    await saveLargeData('mastodon-content-search-history', history, true);
+    await showHistoryInline(); // 履歴表示を更新
   }
 }
 
 // インライン履歴すべてクリア
-function clearInlineHistory() {
+async function clearInlineHistory() {
   if (confirm('すべての履歴を削除しますか？')) {
-    localStorage.removeItem('mastodon-content-search-history');
-    showHistoryInline(); // 履歴表示を更新
+    await removeLargeData('mastodon-content-search-history');
+    await showHistoryInline(); // 履歴表示を更新
   }
 }
 
